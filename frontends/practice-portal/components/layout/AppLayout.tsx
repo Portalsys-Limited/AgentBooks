@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Sidebar from '../navigation/Sidebar'
+import TopNavBar from '../navigation/TopNavBar'
 import { useAuth } from '../../hooks/useAuth'
 
 interface AppLayoutProps {
@@ -27,6 +28,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="flex h-screen bg-gray-50">
       <Sidebar user={user} onLogout={logout} />
       <div className="flex-1 flex flex-col overflow-hidden">
+        <TopNavBar user={user} onLogout={logout} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
           {children}
         </main>

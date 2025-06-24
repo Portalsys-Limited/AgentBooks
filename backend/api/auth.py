@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.database import get_db
-from db.schemas import UserCreate, User, Token, UserLogin
+from db.schemas.user import UserCreate, User, Token, UserLogin
 from services.auth_service import authenticate_user, create_user_token
 from services.user_service import create_user
 
@@ -11,9 +11,9 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 @router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
+async def login(user_credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     """Authenticate user and return JWT token."""
-    user = authenticate_user(db, user_credentials.email, user_credentials.password)
+    user = await authenticate_user(db, user_credentials.email, user_credentials.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -25,10 +25,10 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/signup", response_model=User)
-async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
+async def signup(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """Create a new user account."""
     try:
-        user = create_user(db, user_data)
+        user = await create_user(db, user_data)
         return user
     except HTTPException:
         raise
@@ -41,10 +41,10 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """OAuth2 compatible token endpoint."""
-    user = authenticate_user(db, form_data.username, form_data.password)
+    user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

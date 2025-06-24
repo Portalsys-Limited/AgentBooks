@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from typing import List
 import uuid
 
 from config.database import get_db
-from db.schemas import User, TokenData
+from db.schemas.user import User, TokenData, UserListItem, UserCreate
 from db.models import User as UserModel, UserRole
 from services.auth_service import verify_token
 from services.user_service import get_user_by_id
@@ -14,11 +17,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> User:
     """Get current authenticated user from token."""
     token_data = verify_token(token)
-    user = get_user_by_id(db, token_data.user_id)
+    user = await get_user_by_id(db, token_data.user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -27,12 +30,12 @@ async def get_current_user(
         )
     return user
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=User, status_code=status.HTTP_200_OK)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """Get current user profile."""
     return current_user
 
-@router.get("/me/token-data")
+@router.get("/me/token-data", status_code=status.HTTP_200_OK)
 async def get_token_data(token: str = Depends(oauth2_scheme)):
     """Get decoded token data for debugging/frontend use."""
     token_data = verify_token(token)
@@ -44,13 +47,15 @@ async def get_token_data(token: str = Depends(oauth2_scheme)):
         "client_ids": [str(cid) for cid in token_data.client_ids]
     }
 
-@router.get("/practice/{practice_id}")
+@router.get("/practice/{practice_id}", response_model=List[UserListItem], status_code=status.HTTP_200_OK)
 async def get_users_by_practice(
     practice_id: str,
+    skip: int = 0,
+    limit: int = 100,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    """Get all users for a specific practice (Practice Owner only)."""
+    """Get all users for a specific practice (Practice Owner only) with pagination."""
     
     # Parse UUID
     try:
@@ -70,31 +75,21 @@ async def get_users_by_practice(
         )
     
     # Get users for the practice
-    users = db.query(UserModel).filter(UserModel.practice_id == practice_uuid).all()
-    
-    # Format response
-    response = []
-    for user in users:
-        # Get client IDs for this user
-        client_ids = [str(client.id) for client in user.assigned_clients]
-        
-        response.append({
-            "id": str(user.id),
-            "email": user.email,
-            "role": user.role.value,
-            "practice_id": str(user.practice_id) if user.practice_id else None,
-            "client_ids": client_ids,
-            "created_at": user.created_at.isoformat(),
-            "updated_at": user.updated_at.isoformat() if user.updated_at else None
-        })
-    
-    return response
+    result = await db.execute(
+        select(UserModel)
+        .options(selectinload(UserModel.assigned_clients))
+        .where(UserModel.practice_id == practice_uuid)
+        .offset(skip)
+        .limit(limit)
+    )
+    users = result.scalars().all()
+    return users
 
-@router.post("/")
+@router.post("/", response_model=UserListItem, status_code=status.HTTP_201_CREATED)
 async def create_user(
-    user_data: dict,
+    user_data: UserCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Create a new user (Practice Owner only)."""
     
@@ -106,7 +101,10 @@ async def create_user(
         )
     
     # Check if email already exists
-    existing_user = db.query(UserModel).filter(UserModel.email == user_data["email"]).first()
+    result = await db.execute(
+        select(UserModel).where(UserModel.email == user_data.email)
+    )
+    existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -117,30 +115,24 @@ async def create_user(
     from services.auth_service import hash_password
     
     user = UserModel(
-        email=user_data["email"],
-        password_hash=hash_password("admin"),  # Default password
-        role=UserRole(user_data["role"]),
+        email=user_data.email,
+        password_hash=hash_password(user_data.password),
+        role=user_data.role,
         practice_id=current_user.practice_id
     )
     
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     
-    return {
-        "id": str(user.id),
-        "email": user.email,
-        "role": user.role.value,
-        "practice_id": str(user.practice_id),
-        "created_at": user.created_at.isoformat()
-    }
+    return user
 
-@router.put("/{user_id}")
+@router.put("/{user_id}", response_model=UserListItem, status_code=status.HTTP_200_OK)
 async def update_user(
     user_id: str,
-    user_data: dict,
+    user_data: UserCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Update a user (Practice Owner only)."""
     
@@ -161,10 +153,13 @@ async def update_user(
         )
     
     # Get user
-    user = db.query(UserModel).filter(
-        UserModel.id == user_uuid,
-        UserModel.practice_id == current_user.practice_id
-    ).first()
+    result = await db.execute(
+        select(UserModel).where(
+            UserModel.id == user_uuid,
+            UserModel.practice_id == current_user.practice_id
+        )
+    )
+    user = result.scalar_one_or_none()
     
     if not user:
         raise HTTPException(
@@ -173,38 +168,24 @@ async def update_user(
         )
     
     # Update user
-    if "role" in user_data:
-        user.role = UserRole(user_data["role"])
+    user.role = user_data.role
+    user.email = user_data.email
     
-    if "email" in user_data:
-        # Check if new email is already taken
-        existing_user = db.query(UserModel).filter(
-            UserModel.email == user_data["email"],
-            UserModel.id != user_uuid
-        ).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
-        user.email = user_data["email"]
+    # Update password if provided
+    if user_data.password:
+        from services.auth_service import hash_password
+        user.password_hash = hash_password(user_data.password)
     
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     
-    return {
-        "id": str(user.id),
-        "email": user.email,
-        "role": user.role.value,
-        "practice_id": str(user.practice_id),
-        "updated_at": user.updated_at.isoformat() if user.updated_at else None
-    }
+    return user
 
-@router.delete("/{user_id}")
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Delete a user (Practice Owner only)."""
     
@@ -224,18 +205,14 @@ async def delete_user(
             detail="Invalid user ID format"
         )
     
-    # Prevent self-deletion
-    if user_uuid == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete your own account"
-        )
-    
     # Get user
-    user = db.query(UserModel).filter(
-        UserModel.id == user_uuid,
-        UserModel.practice_id == current_user.practice_id
-    ).first()
+    result = await db.execute(
+        select(UserModel).where(
+            UserModel.id == user_uuid,
+            UserModel.practice_id == current_user.practice_id
+        )
+    )
+    user = result.scalar_one_or_none()
     
     if not user:
         raise HTTPException(
@@ -243,8 +220,15 @@ async def delete_user(
             detail="User not found"
         )
     
-    # Delete user
-    db.delete(user)
-    db.commit()
+    # Prevent self-deletion
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account"
+        )
     
-    return {"message": "User deleted successfully"} 
+    # Delete user
+    await db.delete(user)
+    await db.commit()
+    
+    return None 

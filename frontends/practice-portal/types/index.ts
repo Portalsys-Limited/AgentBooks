@@ -72,7 +72,7 @@ export interface Invoice {
 export interface NavigationItem {
   name: string
   href: string
-  icon: ReactNode
+  icon: React.ComponentType<{ className?: string }>
   badge?: string | number
   roles: UserRole[]
 }

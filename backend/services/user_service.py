@@ -1,33 +1,36 @@
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from fastapi import HTTPException, status
 from uuid import UUID
 
 from db.models import User, Practice
-from db.schemas import UserCreate, User as UserSchema
+from db.schemas.user import UserCreate, User as UserSchema
 from services.auth_service import get_password_hash
 
-def create_user(db: Session, user_data: UserCreate) -> User:
+async def create_user(db: AsyncSession, user_data: UserCreate):
     """Create a new user."""
     # Check if user already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    existing_user = await get_user_by_email(db, user_data.email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User with this email already exists"
+            detail="Email already registered"
         )
     
     # Validate practice if provided
     if user_data.practice_id:
-        practice = db.query(Practice).filter(Practice.id == user_data.practice_id).first()
+        practice = await get_user_by_id(db, user_data.practice_id)
         if not practice:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Practice not found"
             )
     
-    # Create user
+    # Hash the password
     hashed_password = get_password_hash(user_data.password)
+    
+    # Create user
     db_user = User(
         email=user_data.email,
         password_hash=hashed_password,
@@ -36,25 +39,31 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     )
     
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    
     return db_user
 
-def get_user_by_email(db: Session, email: str) -> Optional[User]:
-    """Get user by email."""
-    return db.query(User).filter(User.email == email).first()
+async def get_user_by_email(db: AsyncSession, email: str):
+    """Get user by email address."""
+    result = await db.execute(select(User).where(User.email == email))
+    return result.scalar_one_or_none()
 
-def get_user_by_id(db: Session, user_id: UUID) -> Optional[User]:
+async def get_user_by_id(db: AsyncSession, user_id: str):
     """Get user by ID."""
-    return db.query(User).filter(User.id == user_id).first()
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
 
-def get_users_by_practice(db: Session, practice_id: UUID) -> list[User]:
-    """Get all users in a practice."""
-    return db.query(User).filter(User.practice_id == practice_id).all()
+async def get_users_by_practice(db: AsyncSession, practice_id: str):
+    """Get all users for a practice."""
+    result = await db.execute(
+        select(User).where(User.practice_id == practice_id)
+    )
+    return result.scalars().all()
 
-def update_user(db: Session, user_id: UUID, user_data: dict) -> User:
+async def update_user(db: AsyncSession, user_id: str, user_data: dict):
     """Update user information."""
-    user = get_user_by_id(db, user_id)
+    user = await get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -65,19 +74,19 @@ def update_user(db: Session, user_id: UUID, user_data: dict) -> User:
         if hasattr(user, key) and value is not None:
             setattr(user, key, value)
     
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user
 
-def delete_user(db: Session, user_id: UUID) -> bool:
+async def delete_user(db: AsyncSession, user_id: str):
     """Delete a user."""
-    user = get_user_by_id(db, user_id)
+    user = await get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
-    db.delete(user)
-    db.commit()
+    await db.delete(user)
+    await db.commit()
     return True 
