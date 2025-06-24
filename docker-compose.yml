@@ -1,0 +1,139 @@
+services:
+  # PostgreSQL for Backend
+  postgres-backend:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: agentbooks
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_backend_data:/var/lib/postgresql/data
+    networks:
+      - agentbooks-network
+
+
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-backend:5432/agentbooks
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    depends_on:
+      - postgres-backend
+    volumes:
+      - ./backend:/app
+    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - agentbooks-network
+
+  # Database Seeder (runs once to populate sample data)
+  db-seeder:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-backend:5432/agentbooks
+    depends_on:
+      - postgres-backend
+      - backend
+    volumes:
+      - ./backend:/app
+    command: sh -c "sleep 10 && python seed_database.py"
+    restart: "no"
+    networks:
+      - agentbooks-network
+
+  # Auth Portal
+  auth-portal:
+    build:
+      context: ./frontends/auth-portal
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - INTERNAL_API_URL=http://backend:8000
+      - NEXTAUTH_SECRET=your-nextauth-secret-change-in-production
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontends/auth-portal:/app
+      - /app/node_modules
+    networks:
+      - agentbooks-network
+
+  # Client Portal
+  client-portal:
+    build:
+      context: ./frontends/client-portal
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - INTERNAL_API_URL=http://backend:8000
+      - NEXTAUTH_SECRET=your-nextauth-secret-change-in-production
+      - NEXTAUTH_URL=http://localhost:3001
+    depends_on:
+      - backend
+    volumes:
+      - ./frontends/client-portal:/app
+      - /app/node_modules
+    networks:
+      - agentbooks-network
+
+  # Practice Portal
+  practice-portal:
+    build:
+      context: ./frontends/practice-portal
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - INTERNAL_API_URL=http://backend:8000
+      - NEXTAUTH_SECRET=your-nextauth-secret-change-in-production
+      - NEXTAUTH_URL=http://localhost:3002
+    depends_on:
+      - backend
+    volumes:
+      - ./frontends/practice-portal:/app
+      - /app/node_modules
+    networks:
+      - agentbooks-network
+
+
+
+  # pgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@agentbooks.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres-backend
+    networks:
+      - agentbooks-network
+
+volumes:
+  postgres_backend_data:
+  pgadmin_data:
+
+networks:
+  agentbooks-network:
+    driver: bridge 
