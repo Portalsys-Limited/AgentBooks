@@ -142,6 +142,110 @@ class TwilioService:
             
         except Exception:
             return False
+    
+    async def get_sandbox_qr_code(self) -> Dict[str, Any]:
+        """
+        Get the QR code for Twilio WhatsApp Sandbox (for testing only).
+        
+        Note: This is only for development/testing with Twilio's sandbox environment.
+        Production WhatsApp Business accounts don't use sandbox QR codes.
+        
+        Returns:
+            Dict containing QR code image URL or error information
+        """
+        try:
+            import requests
+            
+            # Twilio Sandbox QR code endpoint
+            sandbox_url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Sandbox/WhatsApp/QrCode.json"
+            
+            response = requests.get(
+                sandbox_url,
+                auth=(self.account_sid, self.auth_token),
+                headers={
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "success": True,
+                    "qr_image_url": data.get("qr_code_url"),
+                    "sandbox_number": data.get("whatsapp_number"),
+                    "instructions": "Scan this QR code with WhatsApp to connect to the sandbox for testing"
+                }
+            elif response.status_code == 404:
+                return {
+                    "success": False,
+                    "error": "QR code endpoint not found. This might not be available for your Twilio account type.",
+                    "status_code": response.status_code,
+                    "suggestion": "Check if you have WhatsApp sandbox enabled in your Twilio console"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch QR code: {response.text}",
+                    "status_code": response.status_code
+                }
+                
+        except ImportError:
+            return {
+                "success": False,
+                "error": "requests library not available. Please install with: pip install requests"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Unexpected error fetching QR code: {str(e)}"
+            }
+    
+    async def get_sandbox_participants(self) -> Dict[str, Any]:
+        """
+        Get list of phone numbers that are authorized to use the WhatsApp sandbox.
+        
+        Returns:
+            Dict containing list of authorized participants or error information
+        """
+        try:
+            import requests
+            
+            # Twilio Sandbox participants endpoint
+            participants_url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Sandbox/WhatsApp/Participants.json"
+            
+            response = requests.get(
+                participants_url,
+                auth=(self.account_sid, self.auth_token),
+                headers={
+                    'Accept': 'application/json'
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "success": True,
+                    "participants": data.get("participants", []),
+                    "total_count": len(data.get("participants", []))
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch participants: {response.text}",
+                    "status_code": response.status_code
+                }
+                
+        except ImportError:
+            return {
+                "success": False,
+                "error": "requests library not available. Please install with: pip install requests"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Unexpected error fetching participants: {str(e)}"
+            }
 
 # Singleton instance
 twilio_service = TwilioService() 
