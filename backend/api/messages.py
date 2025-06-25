@@ -14,6 +14,7 @@ from db.schemas.message import (
 )
 from api.users import get_current_user
 from services.message_service import message_service
+from services.twilio_service import twilio_service
 
 router = APIRouter()
 
@@ -400,4 +401,142 @@ async def get_messaging_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving statistics: {str(e)}"
+        )
+
+@router.get("/twilio/sandbox/qr")
+async def get_twilio_sandbox_qr(
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get the QR code for Twilio WhatsApp Sandbox (for testing only).
+    
+    This endpoint is useful for development and testing when using Twilio's sandbox environment.
+    Users can scan the QR code to connect their WhatsApp to the sandbox for testing.
+    
+    Note: This is only for development/testing. Production WhatsApp Business accounts 
+    don't use sandbox QR codes.
+    """
+    
+    # Check permissions - only practice owners and accountants can access sandbox features
+    if current_user.role not in [UserRole.practice_owner, UserRole.accountant]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to access sandbox features"
+        )
+    
+    try:
+        result = await twilio_service.get_sandbox_qr_code()
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "data": {
+                    "qr_image_url": result.get("qr_image_url"),
+                    "sandbox_number": result.get("sandbox_number"),
+                    "instructions": result.get("instructions"),
+                    "note": "This QR code is for testing purposes only. Scan with WhatsApp to connect to the sandbox."
+                }
+            }
+        else:
+            # Return error information but don't raise HTTP exception for better UX
+            return {
+                "success": False,
+                "error": result.get("error"),
+                "suggestion": result.get("suggestion"),
+                "status_code": result.get("status_code")
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching Twilio sandbox QR code: {str(e)}"
+        )
+
+@router.get("/twilio/sandbox/participants")
+async def get_twilio_sandbox_participants(
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get list of phone numbers authorized to use the WhatsApp sandbox.
+    
+    This shows which phone numbers have been authorized to send/receive 
+    messages through the Twilio WhatsApp sandbox.
+    """
+    
+    # Check permissions - only practice owners and accountants can access sandbox features
+    if current_user.role not in [UserRole.practice_owner, UserRole.accountant]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to access sandbox features"
+        )
+    
+    try:
+        result = await twilio_service.get_sandbox_participants()
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "data": {
+                    "participants": result.get("participants", []),
+                    "total_count": result.get("total_count", 0),
+                    "note": "These phone numbers are authorized to use the WhatsApp sandbox for testing."
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get("error"),
+                "status_code": result.get("status_code")
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching Twilio sandbox participants: {str(e)}"
+        )
+
+@router.post("/twilio/validate-phone")
+async def validate_phone_number(
+    phone_data: dict,  # Expected format: {"phone_number": "+1234567890"}
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Validate if a phone number is properly formatted for WhatsApp messaging.
+    
+    Useful for validating customer phone numbers before sending messages.
+    """
+    
+    # Check permissions - staff members can validate phone numbers
+    if current_user.role not in [UserRole.practice_owner, UserRole.accountant, UserRole.bookkeeper]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to validate phone numbers"
+        )
+    
+    phone_number = phone_data.get("phone_number")
+    if not phone_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="phone_number is required"
+        )
+    
+    try:
+        is_valid = await twilio_service.validate_phone_number(phone_number)
+        
+        return {
+            "success": True,
+            "data": {
+                "phone_number": phone_number,
+                "is_valid": is_valid,
+                "formatted_for_whatsapp": f"whatsapp:{phone_number}" if is_valid else None
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error validating phone number: {str(e)}"
         ) 
