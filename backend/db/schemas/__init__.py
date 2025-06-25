@@ -4,10 +4,8 @@ from .customer import (
     Customer, CustomerCreate, CustomerBase, CustomerListItem, CustomerResponse,
     CustomerCreateRequest, CustomerUpdateRequest
 )
-from .client_company import ClientCompany, ClientCompanyCreate, ClientCompanyBase  # Legacy
-from .business_client import (
-    ClientListItem as BusinessClientListItem, ClientResponse as BusinessClientResponse, 
-    ClientCreateRequest as BusinessClientCreateRequest, ClientUpdateRequest as BusinessClientUpdateRequest
+from .client import (
+    ClientCreateRequest, ClientUpdateRequest, ClientResponse, ClientListItem
 )
 from .customer_client_association import (
     CustomerClientAssociationCreate, CustomerClientAssociationUpdate,
@@ -17,12 +15,6 @@ from .customer_client_association import (
 from .message import (
     Message, MessageCreate, MessageSend, MessageUpdate, MessageListItem, 
     MessageResponse, ConversationResponse
-)
-from .client import (
-    ClientResponse, ClientCreateRequest, ClientUpdateRequest, ClientListItem,
-    PersonalInfo, ContactInfo, Address, PersonalDetails, 
-    GovernmentIdentifiers, FamilyInfo, EmergencyContact,
-    EmploymentInfo, BankingInfo, DataProtection
 )
 
 __all__ = [
@@ -36,12 +28,8 @@ __all__ = [
     "Customer", "CustomerCreate", "CustomerBase", "CustomerListItem", "CustomerResponse",
     "CustomerCreateRequest", "CustomerUpdateRequest",
     
-    # Legacy Client Company schemas
-    "ClientCompany", "ClientCompanyCreate", "ClientCompanyBase",
-    
-    # Business Client schemas
-    "BusinessClientListItem", "BusinessClientResponse", 
-    "BusinessClientCreateRequest", "BusinessClientUpdateRequest",
+    # Client schemas
+    "ClientCreateRequest", "ClientUpdateRequest", "ClientResponse", "ClientListItem",
     
     # Customer-Client Association schemas
     "CustomerClientAssociationCreate", "CustomerClientAssociationUpdate",
@@ -51,10 +39,4 @@ __all__ = [
     # Message schemas
     "Message", "MessageCreate", "MessageSend", "MessageUpdate", "MessageListItem",
     "MessageResponse", "ConversationResponse",
-    
-    # Client schemas (for individual customers - kept for backward compatibility)
-    "ClientResponse", "ClientCreateRequest", "ClientUpdateRequest", "ClientListItem",
-    "PersonalInfo", "ContactInfo", "Address", "PersonalDetails",
-    "GovernmentIdentifiers", "FamilyInfo", "EmergencyContact", 
-    "EmploymentInfo", "BankingInfo", "DataProtection"
 ] 

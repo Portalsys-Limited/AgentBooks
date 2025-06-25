@@ -12,7 +12,7 @@ from db.models.client import BusinessType
 from db.models.companies_house_profile import CompaniesHouseProfile
 from db.models.customer_client_association import CustomerClientAssociation
 from db.schemas.user import User as UserSchema
-from db.schemas.business_client import ClientCreateRequest, ClientUpdateRequest, ClientResponse
+from db.schemas.client import ClientCreateRequest, ClientUpdateRequest, ClientResponse, ClientListItem
 from db.schemas.customer_client_association import (
     CustomerClientAssociationCreate, 
     CustomerClientAssociationUpdate,
@@ -178,87 +178,75 @@ async def create_client(
             customer_id=uuid.uuid4(),  # Legacy field - temporary UUID
             
             # Basic business information
-            business_name=client_data.business_info.business_name,
-            trading_name=client_data.business_info.trading_name,
-            business_type=client_data.business_info.business_type,
-            nature_of_business=client_data.business_info.nature_of_business,
-            industry_sector=client_data.business_info.industry_sector,
+            business_name=client_data.business_name,
+            trading_name=client_data.trading_name,
+            business_type=client_data.business_type,
+            nature_of_business=client_data.nature_of_business,
+            industry_sector=client_data.industry_sector,
         )
         
         # Registration details
-        if client_data.registration_details:
-            client.companies_house_number = client_data.registration_details.companies_house_number
-            client.date_of_incorporation = client_data.registration_details.date_of_incorporation
-            client.country_of_incorporation = client_data.registration_details.country_of_incorporation
+        client.companies_house_number = client_data.companies_house_number
+        client.date_of_incorporation = client_data.date_of_incorporation
+        client.country_of_incorporation = client_data.country_of_incorporation
         
         # Tax information
-        if client_data.tax_info:
-            client.corporation_tax_utr = client_data.tax_info.corporation_tax_utr
-            client.vat_number = client_data.tax_info.vat_number
-            client.vat_registration_date = client_data.tax_info.vat_registration_date
-            client.vat_scheme = client_data.tax_info.vat_scheme
+        client.corporation_tax_utr = client_data.corporation_tax_utr
+        client.vat_number = client_data.vat_number
+        client.vat_registration_date = client_data.vat_registration_date
+        client.vat_scheme = client_data.vat_scheme
         
         # PAYE information
-        if client_data.paye_info:
-            client.payroll_scheme_reference = client_data.paye_info.payroll_scheme_reference
-            client.employer_reference_number = client_data.paye_info.employer_reference_number
-            client.construction_industry_scheme = client_data.paye_info.construction_industry_scheme
+        client.payroll_scheme_reference = client_data.payroll_scheme_reference
+        client.employer_reference_number = client_data.employer_reference_number
+        client.construction_industry_scheme = client_data.construction_industry_scheme
         
         # Registered address
-        if client_data.registered_address:
-            client.registered_address_line1 = client_data.registered_address.line1
-            client.registered_address_line2 = client_data.registered_address.line2
-            client.registered_city = client_data.registered_address.city
-            client.registered_county = client_data.registered_address.county
-            client.registered_postcode = client_data.registered_address.postcode
-            client.registered_country = client_data.registered_address.country
+        client.registered_address_line1 = client_data.registered_address_line1
+        client.registered_address_line2 = client_data.registered_address_line2
+        client.registered_city = client_data.registered_city
+        client.registered_county = client_data.registered_county
+        client.registered_postcode = client_data.registered_postcode
+        client.registered_country = client_data.registered_country
         
         # Trading address
-        if client_data.trading_same_as_registered is not None:
-            client.trading_same_as_registered = client_data.trading_same_as_registered
-        
-        if client_data.trading_address and not client_data.trading_same_as_registered:
-            client.trading_address_line1 = client_data.trading_address.line1
-            client.trading_address_line2 = client_data.trading_address.line2
-            client.trading_city = client_data.trading_address.city
-            client.trading_county = client_data.trading_address.county
-            client.trading_postcode = client_data.trading_address.postcode
-            client.trading_country = client_data.trading_address.country
+        client.trading_same_as_registered = client_data.trading_same_as_registered
+        client.trading_address_line1 = client_data.trading_address_line1
+        client.trading_address_line2 = client_data.trading_address_line2
+        client.trading_city = client_data.trading_city
+        client.trading_county = client_data.trading_county
+        client.trading_postcode = client_data.trading_postcode
+        client.trading_country = client_data.trading_country
         
         # Contact information
-        if client_data.contact_info:
-            client.main_phone = client_data.contact_info.main_phone
-            client.main_email = client_data.contact_info.main_email
-            client.website = client_data.contact_info.website
+        client.main_phone = client_data.main_phone
+        client.main_email = client_data.main_email
+        client.website = client_data.website
         
         # Banking information
-        if client_data.banking_info:
-            client.business_bank_name = client_data.banking_info.business_bank_name
-            client.business_bank_sort_code = client_data.banking_info.business_bank_sort_code
-            client.business_bank_account_number = client_data.banking_info.business_bank_account_number
-            client.business_bank_account_name = client_data.banking_info.business_bank_account_name
+        client.business_bank_name = client_data.business_bank_name
+        client.business_bank_sort_code = client_data.business_bank_sort_code
+        client.business_bank_account_number = client_data.business_bank_account_number
+        client.business_bank_account_name = client_data.business_bank_account_name
         
         # Financial information
-        if client_data.financial_info:
-            client.year_end_date = client_data.financial_info.year_end_date
-            client.annual_turnover = client_data.financial_info.annual_turnover
-            client.number_of_employees = client_data.financial_info.number_of_employees
-            client.company_status = client_data.financial_info.company_status
+        client.year_end_date = client_data.year_end_date
+        client.annual_turnover = client_data.annual_turnover
+        client.number_of_employees = client_data.number_of_employees
+        client.company_status = client_data.company_status
         
         # Professional services
-        if client_data.professional_services:
-            client.current_accountant = client_data.professional_services.current_accountant
-            client.previous_accountant = client_data.professional_services.previous_accountant
-            client.solicitor = client_data.professional_services.solicitor
-            client.bank_manager = client_data.professional_services.bank_manager
-            client.insurance_broker = client_data.professional_services.insurance_broker
+        client.current_accountant = client_data.current_accountant
+        client.previous_accountant = client_data.previous_accountant
+        client.solicitor = client_data.solicitor
+        client.bank_manager = client_data.bank_manager
+        client.insurance_broker = client_data.insurance_broker
         
         # Service requirements
-        if client_data.service_requirements:
-            client.services_required = {
-                "services": client_data.service_requirements.services_required or []
-            }
-            client.accounting_software = client_data.service_requirements.accounting_software
+        client.services_required = {
+            "services": client_data.services_required or []
+        }
+        client.accounting_software = client_data.accounting_software
         
         # Additional information
         client.notes = client_data.notes
@@ -347,133 +335,122 @@ async def update_client(
             )
         
         # Update basic business information
-        if client_data.business_info:
-            if client_data.business_info.business_name is not None:
-                client.business_name = client_data.business_info.business_name
-            if client_data.business_info.trading_name is not None:
-                client.trading_name = client_data.business_info.trading_name
-            if client_data.business_info.business_type is not None:
-                client.business_type = client_data.business_info.business_type
-            if client_data.business_info.nature_of_business is not None:
-                client.nature_of_business = client_data.business_info.nature_of_business
-            if client_data.business_info.industry_sector is not None:
-                client.industry_sector = client_data.business_info.industry_sector
+        if client_data.business_name is not None:
+            client.business_name = client_data.business_name
+        if client_data.trading_name is not None:
+            client.trading_name = client_data.trading_name
+        if client_data.business_type is not None:
+            client.business_type = client_data.business_type
+        if client_data.nature_of_business is not None:
+            client.nature_of_business = client_data.nature_of_business
+        if client_data.industry_sector is not None:
+            client.industry_sector = client_data.industry_sector
         
         # Update registration details
-        if client_data.registration_details:
-            if client_data.registration_details.companies_house_number is not None:
-                client.companies_house_number = client_data.registration_details.companies_house_number
-            if client_data.registration_details.date_of_incorporation is not None:
-                client.date_of_incorporation = client_data.registration_details.date_of_incorporation
-            if client_data.registration_details.country_of_incorporation is not None:
-                client.country_of_incorporation = client_data.registration_details.country_of_incorporation
+        if client_data.companies_house_number is not None:
+            client.companies_house_number = client_data.companies_house_number
+        if client_data.date_of_incorporation is not None:
+            client.date_of_incorporation = client_data.date_of_incorporation
+        if client_data.country_of_incorporation is not None:
+            client.country_of_incorporation = client_data.country_of_incorporation
         
         # Update tax information
-        if client_data.tax_info:
-            if client_data.tax_info.corporation_tax_utr is not None:
-                client.corporation_tax_utr = client_data.tax_info.corporation_tax_utr
-            if client_data.tax_info.vat_number is not None:
-                client.vat_number = client_data.tax_info.vat_number
-            if client_data.tax_info.vat_registration_date is not None:
-                client.vat_registration_date = client_data.tax_info.vat_registration_date
-            if client_data.tax_info.vat_scheme is not None:
-                client.vat_scheme = client_data.tax_info.vat_scheme
+        if client_data.corporation_tax_utr is not None:
+            client.corporation_tax_utr = client_data.corporation_tax_utr
+        if client_data.vat_number is not None:
+            client.vat_number = client_data.vat_number
+        if client_data.vat_registration_date is not None:
+            client.vat_registration_date = client_data.vat_registration_date
+        if client_data.vat_scheme is not None:
+            client.vat_scheme = client_data.vat_scheme
         
         # Update PAYE information
-        if client_data.paye_info:
-            if client_data.paye_info.payroll_scheme_reference is not None:
-                client.payroll_scheme_reference = client_data.paye_info.payroll_scheme_reference
-            if client_data.paye_info.employer_reference_number is not None:
-                client.employer_reference_number = client_data.paye_info.employer_reference_number
-            if client_data.paye_info.construction_industry_scheme is not None:
-                client.construction_industry_scheme = client_data.paye_info.construction_industry_scheme
+        if client_data.payroll_scheme_reference is not None:
+            client.payroll_scheme_reference = client_data.payroll_scheme_reference
+        if client_data.employer_reference_number is not None:
+            client.employer_reference_number = client_data.employer_reference_number
+        if client_data.construction_industry_scheme is not None:
+            client.construction_industry_scheme = client_data.construction_industry_scheme
         
         # Update registered address
-        if client_data.registered_address:
-            if client_data.registered_address.line1 is not None:
-                client.registered_address_line1 = client_data.registered_address.line1
-            if client_data.registered_address.line2 is not None:
-                client.registered_address_line2 = client_data.registered_address.line2
-            if client_data.registered_address.city is not None:
-                client.registered_city = client_data.registered_address.city
-            if client_data.registered_address.county is not None:
-                client.registered_county = client_data.registered_address.county
-            if client_data.registered_address.postcode is not None:
-                client.registered_postcode = client_data.registered_address.postcode
-            if client_data.registered_address.country is not None:
-                client.registered_country = client_data.registered_address.country
+        if client_data.registered_address_line1 is not None:
+            client.registered_address_line1 = client_data.registered_address_line1
+        if client_data.registered_address_line2 is not None:
+            client.registered_address_line2 = client_data.registered_address_line2
+        if client_data.registered_city is not None:
+            client.registered_city = client_data.registered_city
+        if client_data.registered_county is not None:
+            client.registered_county = client_data.registered_county
+        if client_data.registered_postcode is not None:
+            client.registered_postcode = client_data.registered_postcode
+        if client_data.registered_country is not None:
+            client.registered_country = client_data.registered_country
         
         # Update trading address setting
         if client_data.trading_same_as_registered is not None:
             client.trading_same_as_registered = client_data.trading_same_as_registered
         
         # Update trading address
-        if client_data.trading_address:
-            if client_data.trading_address.line1 is not None:
-                client.trading_address_line1 = client_data.trading_address.line1
-            if client_data.trading_address.line2 is not None:
-                client.trading_address_line2 = client_data.trading_address.line2
-            if client_data.trading_address.city is not None:
-                client.trading_city = client_data.trading_address.city
-            if client_data.trading_address.county is not None:
-                client.trading_county = client_data.trading_address.county
-            if client_data.trading_address.postcode is not None:
-                client.trading_postcode = client_data.trading_address.postcode
-            if client_data.trading_address.country is not None:
-                client.trading_country = client_data.trading_address.country
+        if client_data.trading_address_line1 is not None:
+            client.trading_address_line1 = client_data.trading_address_line1
+        if client_data.trading_address_line2 is not None:
+            client.trading_address_line2 = client_data.trading_address_line2
+        if client_data.trading_city is not None:
+            client.trading_city = client_data.trading_city
+        if client_data.trading_county is not None:
+            client.trading_county = client_data.trading_county
+        if client_data.trading_postcode is not None:
+            client.trading_postcode = client_data.trading_postcode
+        if client_data.trading_country is not None:
+            client.trading_country = client_data.trading_country
         
         # Update contact information
-        if client_data.contact_info:
-            if client_data.contact_info.main_phone is not None:
-                client.main_phone = client_data.contact_info.main_phone
-            if client_data.contact_info.main_email is not None:
-                client.main_email = client_data.contact_info.main_email
-            if client_data.contact_info.website is not None:
-                client.website = client_data.contact_info.website
+        if client_data.main_phone is not None:
+            client.main_phone = client_data.main_phone
+        if client_data.main_email is not None:
+            client.main_email = client_data.main_email
+        if client_data.website is not None:
+            client.website = client_data.website
         
         # Update banking information
-        if client_data.banking_info:
-            if client_data.banking_info.business_bank_name is not None:
-                client.business_bank_name = client_data.banking_info.business_bank_name
-            if client_data.banking_info.business_bank_sort_code is not None:
-                client.business_bank_sort_code = client_data.banking_info.business_bank_sort_code
-            if client_data.banking_info.business_bank_account_number is not None:
-                client.business_bank_account_number = client_data.banking_info.business_bank_account_number
-            if client_data.banking_info.business_bank_account_name is not None:
-                client.business_bank_account_name = client_data.banking_info.business_bank_account_name
+        if client_data.business_bank_name is not None:
+            client.business_bank_name = client_data.business_bank_name
+        if client_data.business_bank_sort_code is not None:
+            client.business_bank_sort_code = client_data.business_bank_sort_code
+        if client_data.business_bank_account_number is not None:
+            client.business_bank_account_number = client_data.business_bank_account_number
+        if client_data.business_bank_account_name is not None:
+            client.business_bank_account_name = client_data.business_bank_account_name
         
         # Update financial information
-        if client_data.financial_info:
-            if client_data.financial_info.year_end_date is not None:
-                client.year_end_date = client_data.financial_info.year_end_date
-            if client_data.financial_info.annual_turnover is not None:
-                client.annual_turnover = client_data.financial_info.annual_turnover
-            if client_data.financial_info.number_of_employees is not None:
-                client.number_of_employees = client_data.financial_info.number_of_employees
-            if client_data.financial_info.company_status is not None:
-                client.company_status = client_data.financial_info.company_status
+        if client_data.year_end_date is not None:
+            client.year_end_date = client_data.year_end_date
+        if client_data.annual_turnover is not None:
+            client.annual_turnover = client_data.annual_turnover
+        if client_data.number_of_employees is not None:
+            client.number_of_employees = client_data.number_of_employees
+        if client_data.company_status is not None:
+            client.company_status = client_data.company_status
         
         # Update professional services
-        if client_data.professional_services:
-            if client_data.professional_services.current_accountant is not None:
-                client.current_accountant = client_data.professional_services.current_accountant
-            if client_data.professional_services.previous_accountant is not None:
-                client.previous_accountant = client_data.professional_services.previous_accountant
-            if client_data.professional_services.solicitor is not None:
-                client.solicitor = client_data.professional_services.solicitor
-            if client_data.professional_services.bank_manager is not None:
-                client.bank_manager = client_data.professional_services.bank_manager
-            if client_data.professional_services.insurance_broker is not None:
-                client.insurance_broker = client_data.professional_services.insurance_broker
+        if client_data.current_accountant is not None:
+            client.current_accountant = client_data.current_accountant
+        if client_data.previous_accountant is not None:
+            client.previous_accountant = client_data.previous_accountant
+        if client_data.solicitor is not None:
+            client.solicitor = client_data.solicitor
+        if client_data.bank_manager is not None:
+            client.bank_manager = client_data.bank_manager
+        if client_data.insurance_broker is not None:
+            client.insurance_broker = client_data.insurance_broker
         
         # Update service requirements
-        if client_data.service_requirements:
-            if client_data.service_requirements.services_required is not None:
-                client.services_required = {
-                    "services": client_data.service_requirements.services_required
-                }
-            if client_data.service_requirements.accounting_software is not None:
-                client.accounting_software = client_data.service_requirements.accounting_software
+        if client_data.services_required is not None:
+            client.services_required = {
+                "services": client_data.services_required
+            }
+        if client_data.accounting_software is not None:
+            client.accounting_software = client_data.accounting_software
         
         # Update additional information
         if client_data.notes is not None:
