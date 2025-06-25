@@ -106,5 +106,6 @@ class Customer(Base):
     
     # Relationships
     practice = relationship("Practice", back_populates="customers")
-    client_companies = relationship("ClientCompany", back_populates="customer")
-    assigned_users = relationship("User", secondary="user_client_assignments", back_populates="assigned_clients") 
+    assigned_users = relationship("User", secondary="user_client_assignments", back_populates="assigned_clients")
+    messages = relationship("Message", back_populates="customer")
+    client_associations = relationship("CustomerClientAssociation", back_populates="customer") 

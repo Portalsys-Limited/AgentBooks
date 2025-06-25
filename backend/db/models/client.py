@@ -9,19 +9,23 @@ from .base import Base
 
 # Enum for business type
 class BusinessType(str, enum.Enum):
-    sole_trader = "sole_trader"
-    limited_company = "limited_company"
-    partnership = "partnership"
-    limited_partnership = "limited_partnership"
-    llp = "llp"  # Limited Liability Partnership
-    charity = "charity"
-    community_interest_company = "community_interest_company"
-    other = "other"
+    ltd = "LTD - Limited Company"
+    llp = "LLP - Limited Liability Partnership"
+    nti = "NTI - Non Trade Individual"
+    ntj = "NTJ - Non Trade Joint Income"
+    ntt = "NTT - Non Trading Trust"
+    ptb = "PTB - Partnership Trading Business"
+    stb = "STB - Sole Trading Business"
+    tio = "TIO - Tax Income only"
+    ttt = "TTT - Trading Trust"
 
-class ClientCompany(Base):
-    __tablename__ = "client_companies"
+class Client(Base):
+    __tablename__ = "clients"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    
+    # Unique client identifier
+    client_code = Column(String, nullable=False, unique=True, index=True)
     
     # Basic company information
     business_name = Column(String, nullable=False, index=True)
@@ -101,9 +105,12 @@ class ClientCompany(Base):
     due_diligence_completed = Column(Boolean, default=False)
     
     # System fields
-    customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False)  # Legacy field
+    practice_id = Column(UUID(as_uuid=True), ForeignKey("practices.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    customer = relationship("Customer", back_populates="client_companies") 
+    practice = relationship("Practice", back_populates="clients")
+    customer_associations = relationship("CustomerClientAssociation", back_populates="client")
+    companies_house_profile = relationship("CompaniesHouseProfile", back_populates="client", uselist=False) 

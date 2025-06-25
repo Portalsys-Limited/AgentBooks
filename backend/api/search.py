@@ -6,7 +6,7 @@ from typing import List, Optional
 import uuid
 
 from config.database import get_db
-from db.models import Customer, ClientCompany, UserRole
+from db.models import Customer, Client, UserRole
 from db.schemas.user import User as UserSchema
 from api.users import get_current_user
 
@@ -47,7 +47,7 @@ async def search_customers_and_clients(
     
     # Search customers (people)
     customer_query = select(Customer).options(
-        selectinload(Customer.client_companies)
+        selectinload(Customer.client_associations)
     ).where(
         and_(
             Customer.practice_id == current_user.practice_id,
@@ -77,25 +77,23 @@ async def search_customers_and_clients(
             "email": customer.primary_email,
             "phone": customer.primary_phone,
             "type": "customer",
-            "client_count": len(customer.client_companies),
+            "client_count": len(customer.client_associations),
             "created_at": customer.created_at.isoformat() if customer.created_at else None
         })
     
     # Search clients (companies)
-    client_query = select(ClientCompany).options(
-        selectinload(ClientCompany.customer)
-    ).join(Customer).where(
+    client_query = select(Client).where(
         and_(
-            Customer.practice_id == current_user.practice_id,
+            Client.practice_id == current_user.practice_id,
             or_(
-                ClientCompany.business_name.ilike(search_term),
-                ClientCompany.trading_name.ilike(search_term),
-                ClientCompany.nature_of_business.ilike(search_term),
-                ClientCompany.companies_house_number.ilike(search_term),
-                ClientCompany.vat_number.ilike(search_term),
-                ClientCompany.main_email.ilike(search_term),
-                ClientCompany.main_phone.ilike(search_term),
-                ClientCompany.notes.ilike(search_term)
+                Client.business_name.ilike(search_term),
+                Client.trading_name.ilike(search_term),
+                Client.nature_of_business.ilike(search_term),
+                Client.companies_house_number.ilike(search_term),
+                Client.vat_number.ilike(search_term),
+                Client.main_email.ilike(search_term),
+                Client.main_phone.ilike(search_term),
+                Client.notes.ilike(search_term)
             )
         )
     ).limit(limit // 2)
@@ -112,8 +110,6 @@ async def search_customers_and_clients(
             "email": client.main_email,
             "phone": client.main_phone,
             "type": "client",
-            "customer_name": client.customer.name if client.customer else None,
-            "customer_id": str(client.customer.id) if client.customer else None,
             "created_at": client.created_at.isoformat() if client.created_at else None
         })
     

@@ -4,7 +4,8 @@ from datetime import date, datetime
 from uuid import UUID
 from decimal import Decimal
 
-from db.models import Gender, MaritalStatus, BusinessType
+from db.models.customer import Gender, MaritalStatus
+from db.models.client import BusinessType
 
 
 # Address schemas for input (nested structure)
