@@ -11,9 +11,18 @@ class Practice(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = Column(String, nullable=False, index=True)
+    
+    # Communication settings - each practice has their own numbers/emails
+    whatsapp_number = Column(String)  # Format: whatsapp:+14155238886
+    main_phone = Column(String)
+    main_email = Column(String)
+    
+    # System fields
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     users = relationship("User", back_populates="practice")
-    customers = relationship("Customer", back_populates="practice") 
+    customers = relationship("Customer", back_populates="practice")
+    clients = relationship("Client", back_populates="practice")
+    messages = relationship("Message", back_populates="practice") 
