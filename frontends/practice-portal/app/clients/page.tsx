@@ -74,10 +74,8 @@ export default function ClientsPage() {
       setError(null)
 
       try {
-        const token = localStorage.getItem('authToken')
-        const response = await fetch(`http://localhost:8000/search/?q=${encodeURIComponent(query.trim())}&limit=20`, {
+        const response = await fetch(`/api/search/?q=${encodeURIComponent(query.trim())}&limit=20`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         })

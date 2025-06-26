@@ -132,10 +132,8 @@ export default function ClientDetailPage() {
 
   const fetchClient = async () => {
     try {
-      const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:8000/clients/${clientId}`, {
+      const response = await fetch(`/api/clients/${clientId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })

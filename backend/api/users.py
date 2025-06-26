@@ -47,6 +47,39 @@ async def get_token_data(token: str = Depends(oauth2_scheme)):
         "client_ids": [str(cid) for cid in token_data.client_ids]
     }
 
+@router.get("/", response_model=List[UserListItem], status_code=status.HTTP_200_OK)
+async def get_users_for_current_practice(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all users for the current user's practice (Practice Owner only) with pagination."""
+    
+    # Check permissions - only practice owners can view all users
+    if current_user.role != UserRole.practice_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to access practice users"
+        )
+    
+    if not current_user.practice_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not associated with a practice"
+        )
+    
+    # Get users for the practice
+    result = await db.execute(
+        select(UserModel)
+        .options(selectinload(UserModel.assigned_clients))
+        .where(UserModel.practice_id == current_user.practice_id)
+        .offset(skip)
+        .limit(limit)
+    )
+    users = result.scalars().all()
+    return users
+
 @router.get("/practice/{practice_id}", response_model=List[UserListItem], status_code=status.HTTP_200_OK)
 async def get_users_by_practice(
     practice_id: str,
