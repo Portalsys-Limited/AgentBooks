@@ -76,7 +76,14 @@ export default function ClientsPage() {
       setError(null)
 
       try {
-        const response = await fetch(`/api/search/?q=${encodeURIComponent(query.trim())}&limit=20`, {
+        const params = new URLSearchParams({
+          q: query.trim(),
+          limit: '20',
+          search_customers: showCustomers.toString(),
+          search_clients: showClients.toString()
+        });
+        
+        const response = await fetch(`/api/search/?${params}`, {
           headers: {
             'Content-Type': 'application/json'
           }
@@ -101,7 +108,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     performSearch(searchQuery)
-  }, [searchQuery, performSearch])
+  }, [searchQuery, performSearch, showCustomers, showClients])
 
   const handleResultClick = (result: Customer | Client) => {
     if (result.type === 'customer') {
