@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Text, Boolean, UniqueConstraint
+from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Text, Boolean, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -58,11 +58,11 @@ class CustomerClientAssociation(Base):
     customer = relationship("Customer", back_populates="client_associations")
     client = relationship("Client", back_populates="customer_associations")
     
-    # Constraints
+    # Constraints and indexes
     __table_args__ = (
-        # Ensure only one primary contact per client
-        UniqueConstraint('client_id', 'is_primary_contact', 
-                        name='uq_client_primary_contact',
-                        postgresql_where=Column('is_primary_contact') == True),
+        # Ensure only one primary contact per client (partial index for PostgreSQL)
+        Index('ix_client_primary_contact_unique', 'client_id', 
+              unique=True, 
+              postgresql_where=(Column('is_primary_contact') == True)),
         {"schema": None}
     ) 
