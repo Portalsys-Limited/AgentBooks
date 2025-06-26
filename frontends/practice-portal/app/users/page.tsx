@@ -33,14 +33,9 @@ export default function UsersPage() {
   }, [user])
 
   const fetchUsers = async () => {
-    const practiceId = user?.practice_id || user?.practiceId
-    if (!practiceId) return
-
     try {
-      const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:8000/users/practice/${practiceId}`, {
+      const response = await fetch('/api/users', {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
@@ -64,11 +59,9 @@ export default function UsersPage() {
 
     setCreating(true)
     try {
-      const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:8000/users/', {
+      const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
@@ -97,11 +90,9 @@ export default function UsersPage() {
     if (!confirm('Are you sure you want to delete this user?')) return
 
     try {
-      const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:8000/users/${userId}`, {
+      const response = await fetch(`/api/users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
