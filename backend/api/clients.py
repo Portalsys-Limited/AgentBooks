@@ -7,12 +7,12 @@ import logging
 from typing import Optional
 
 from config.database import get_db
-from db.models import Client, Customer, UserRole
+from db.models import Client, Customer, UserRole, Service, ClientService
 from db.models.client import BusinessType
 from db.models.companies_house_profile import CompaniesHouseProfile
 from db.models.customer_client_association import CustomerClientAssociation
 from db.schemas.user import User as UserSchema
-from db.schemas.client import ClientCreateRequest, ClientUpdateRequest, ClientResponse, ClientListItem
+from db.schemas.client import ClientCreateRequest, ClientUpdateRequest, ClientResponse, ClientListItem, ClientServiceUpdate
 from db.schemas.customer_client_association import (
     CustomerClientAssociationCreate, 
     CustomerClientAssociationUpdate,
@@ -41,12 +41,13 @@ async def get_client_details(
             detail="Not enough permissions to view client details"
         )
     
-    # Get client with customer associations and Companies House profile
+    # Get client with customer associations, Companies House profile, and services
     result = await db.execute(
         select(Client)
         .options(
             selectinload(Client.customer_associations),
-            selectinload(Client.companies_house_profile)
+            selectinload(Client.companies_house_profile),
+            selectinload(Client.client_services).selectinload(ClientService.service)
         )
         .where(Client.id == client_id)
     )
@@ -64,6 +65,31 @@ async def get_client_details(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions to access this client"
         )
+    
+    # Get all available services for this practice
+    services_result = await db.execute(
+        select(Service).where(Service.practice_id == client.practice_id)
+    )
+    all_services = services_result.scalars().all()
+    
+    # Prepare services data showing enabled/disabled status
+    services_data = []
+    for service in all_services:
+        # Find if client has this service assigned
+        client_service = next(
+            (cs for cs in client.client_services if cs.service_id == service.id), 
+            None
+        )
+        
+        services_data.append({
+            "service_id": str(service.id),
+            "service_code": service.service_code,
+            "name": service.name,
+            "description": service.description,
+            "is_enabled": client_service.is_enabled if client_service else False,
+            "assigned_at": client_service.assigned_at.isoformat() if client_service and client_service.assigned_at else None,
+            "updated_at": client_service.updated_at.isoformat() if client_service and client_service.updated_at else None
+        })
     
     # Prepare Companies House data (complete JSON for easy frontend consumption)
     companies_house_data = None
@@ -135,6 +161,7 @@ async def get_client_details(
             }
             for assoc in client.customer_associations
         ] if client.customer_associations else [],
+        "services": services_data,
         "companies_house_profile": companies_house_data
     }
 
@@ -458,6 +485,30 @@ async def update_client(
             client.notes = client_data.notes
         if client_data.risk_assessment is not None:
             client.risk_assessment = client_data.risk_assessment
+        
+        # Update services assignments
+        if client_data.services is not None:
+            for service_update in client_data.services:
+                # Check if ClientService already exists
+                existing_client_service = await db.execute(
+                    select(ClientService).where(
+                        ClientService.client_id == client_id,
+                        ClientService.service_id == service_update.service_id
+                    )
+                )
+                client_service = existing_client_service.scalar_one_or_none()
+                
+                if client_service:
+                    # Update existing assignment
+                    client_service.is_enabled = service_update.is_enabled
+                else:
+                    # Create new assignment
+                    new_client_service = ClientService(
+                        client_id=client_id,
+                        service_id=service_update.service_id,
+                        is_enabled=service_update.is_enabled
+                    )
+                    db.add(new_client_service)
         
         # Save changes
         await db.commit()

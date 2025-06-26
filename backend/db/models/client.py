@@ -113,4 +113,5 @@ class Client(Base):
     # Relationships
     practice = relationship("Practice", back_populates="clients")
     customer_associations = relationship("CustomerClientAssociation", back_populates="client")
-    companies_house_profile = relationship("CompaniesHouseProfile", back_populates="client", uselist=False) 
+    companies_house_profile = relationship("CompaniesHouseProfile", back_populates="client", uselist=False)
+    client_services = relationship("ClientService", back_populates="client", cascade="all, delete-orphan") 
