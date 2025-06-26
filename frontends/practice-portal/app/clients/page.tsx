@@ -13,6 +13,15 @@ import {
   CalendarIcon
 } from '@heroicons/react/24/outline'
 
+// ✅ CLEAN: Import from centralized services
+import { 
+  searchCustomersAndClients,
+  type SearchResult,
+  type Customer,
+  type Client,
+  ApiError
+} from '../../lib/services'
+
 // Simple debounce implementation
 const debounce = (func: (...args: any[]) => void, delay: number) => {
   let timeoutId: NodeJS.Timeout
@@ -20,37 +29,6 @@ const debounce = (func: (...args: any[]) => void, delay: number) => {
     clearTimeout(timeoutId)
     timeoutId = setTimeout(() => func(...args), delay)
   }
-}
-
-interface SearchResult {
-  customers: Customer[]
-  clients: Client[]
-  total: number
-}
-
-interface Customer {
-  id: string
-  name: string
-  first_name?: string
-  last_name?: string
-  email?: string
-  phone?: string
-  type: 'customer'
-  client_count: number
-  created_at?: string
-}
-
-interface Client {
-  id: string
-  name: string
-  trading_name?: string
-  business_type?: string
-  email?: string
-  phone?: string
-  type: 'client'
-  customer_name?: string
-  customer_id?: string
-  created_at?: string
 }
 
 export default function ClientsPage() {
@@ -76,34 +54,27 @@ export default function ClientsPage() {
       setError(null)
 
       try {
-        const params = new URLSearchParams({
+        // ✅ CLEAN: Use service function instead of raw fetch
+        const data = await searchCustomersAndClients({
           q: query.trim(),
-          limit: '20',
-          search_customers: showCustomers.toString(),
-          search_clients: showClients.toString()
-        });
-        
-        const response = await fetch(`/api/search/?${params}`, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          limit: 20,
+          search_customers: showCustomers,
+          search_clients: showClients
         })
-
-        if (!response.ok) {
-          throw new Error(`Search failed: ${response.status}`)
-        }
-
-        const data = await response.json()
         setSearchResults(data)
         setHasSearched(true)
       } catch (err) {
         console.error('Search error:', err)
-        setError(err instanceof Error ? err.message : 'Search failed')
+        if (err instanceof ApiError) {
+          setError(`Search failed: ${err.message}`)
+        } else {
+          setError(err instanceof Error ? err.message : 'Search failed')
+        }
       } finally {
         setLoading(false)
       }
     }, 300),
-    []
+    [showCustomers, showClients]
   )
 
   useEffect(() => {
@@ -132,7 +103,7 @@ export default function ClientsPage() {
             Customers & Clients
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Search and manage your customers and clients:
+            Search and manage your customers (people) and clients (companies)
           </p>
         </div>
 
@@ -199,9 +170,9 @@ export default function ClientsPage() {
 
         {/* Search Results */}
         {hasSearched && (
-          <div>
+          <div className="space-y-6">
             {/* Results Summary */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">
                 {searchResults.total === 0 ? 'No results found' : `${searchResults.total} results found`}
               </h3>
@@ -212,30 +183,96 @@ export default function ClientsPage() {
               )}
             </div>
 
-            {/* Two-Column Results Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Clients Column */}
-              {showClients && searchResults.clients.length > 0 && (
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
-                    <BuildingOfficeIcon className="h-5 w-5 mr-2 text-green-600" />
-                    Clients ({searchResults.clients.length})
-                  </h4>
-                  <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                    <ul className="divide-y divide-gray-200">
-                      {searchResults.clients.map((client) => (
-                        <li key={client.id}>
-                          <button
-                            onClick={() => handleResultClick(client)}
-                            className="w-full text-left px-6 py-4 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
-                          >
+            {/* Customers Section */}
+            {showCustomers && searchResults.customers.length > 0 && (
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
+                  <UserIcon className="h-5 w-5 mr-2" />
+                  Customers ({searchResults.customers.length})
+                </h4>
+                <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                  <ul className="divide-y divide-gray-200">
+                    {searchResults.customers.map((customer) => (
+                      <li key={customer.id}>
+                        <button
+                          onClick={() => handleResultClick(customer)}
+                          className="w-full text-left px-6 py-4 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0">
+                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <UserIcon className="h-6 w-6 text-blue-600" />
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {customer.name}
+                                  {customer.first_name && customer.last_name && (
+                                    <span className="text-gray-500 ml-2">
+                                      ({customer.first_name} {customer.last_name})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                  {customer.email && (
+                                    <div className="flex items-center">
+                                      <EnvelopeIcon className="h-4 w-4 mr-1" />
+                                      {customer.email}
+                                    </div>
+                                  )}
+                                  {customer.phone && (
+                                    <div className="flex items-center">
+                                      <PhoneIcon className="h-4 w-4 mr-1" />
+                                      {customer.phone}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-gray-900">
+                                {customer.client_count} {customer.client_count === 1 ? 'client' : 'clients'}
+                              </div>
+                              {customer.created_at && (
+                                <div className="text-sm text-gray-500 flex items-center">
+                                  <CalendarIcon className="h-4 w-4 mr-1" />
+                                  {formatDate(customer.created_at)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Clients Section */}
+            {showClients && searchResults.clients.length > 0 && (
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
+                  <BuildingOfficeIcon className="h-5 w-5 mr-2" />
+                  Clients ({searchResults.clients.length})
+                </h4>
+                <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                  <ul className="divide-y divide-gray-200">
+                    {searchResults.clients.map((client) => (
+                      <li key={client.id}>
+                        <button
+                          onClick={() => handleResultClick(client)}
+                          className="w-full text-left px-6 py-4 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
                             <div className="flex items-center">
                               <div className="flex-shrink-0">
                                 <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                                   <BuildingOfficeIcon className="h-6 w-6 text-green-600" />
                                 </div>
                               </div>
-                              <div className="ml-4 flex-grow">
+                              <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900">
                                   {client.name}
                                   {client.trading_name && client.trading_name !== client.name && (
@@ -244,7 +281,7 @@ export default function ClientsPage() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mt-1">
+                                <div className="flex items-center space-x-4 text-sm text-gray-500">
                                   {client.business_type && (
                                     <div className="capitalize">
                                       {client.business_type.replace('_', ' ')}
@@ -268,87 +305,24 @@ export default function ClientsPage() {
                                     Customer: {client.customer_name}
                                   </div>
                                 )}
-                                {client.created_at && (
-                                  <div className="text-sm text-gray-500 mt-1 flex items-center">
-                                    <CalendarIcon className="h-4 w-4 mr-1" />
-                                    {formatDate(client.created_at)}
-                                  </div>
-                                )}
                               </div>
                             </div>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* Customers Column */}
-              {showCustomers && searchResults.customers.length > 0 && (
-                <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center">
-                    <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
-                    Customers ({searchResults.customers.length})
-                  </h4>
-                  <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                    <ul className="divide-y divide-gray-200">
-                      {searchResults.customers.map((customer) => (
-                        <li key={customer.id}>
-                          <button
-                            onClick={() => handleResultClick(customer)}
-                            className="w-full text-left px-6 py-4 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <UserIcon className="h-6 w-6 text-blue-600" />
+                            <div className="text-right">
+                              {client.created_at && (
+                                <div className="text-sm text-gray-500 flex items-center">
+                                  <CalendarIcon className="h-4 w-4 mr-1" />
+                                  {formatDate(client.created_at)}
                                 </div>
-                              </div>
-                              <div className="ml-4 flex-grow">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {customer.name}
-                                  {customer.first_name && customer.last_name && (
-                                    <span className="text-gray-500 ml-2">
-                                      ({customer.first_name} {customer.last_name})
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mt-1">
-                                  {customer.email && (
-                                    <div className="flex items-center">
-                                      <EnvelopeIcon className="h-4 w-4 mr-1" />
-                                      {customer.email}
-                                    </div>
-                                  )}
-                                  {customer.phone && (
-                                    <div className="flex items-center">
-                                      <PhoneIcon className="h-4 w-4 mr-1" />
-                                      {customer.phone}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex justify-between items-center mt-1">
-                                  <div className="text-sm text-gray-900">
-                                    {customer.client_count} {customer.client_count === 1 ? 'client' : 'clients'}
-                                  </div>
-                                  {customer.created_at && (
-                                    <div className="text-sm text-gray-500 flex items-center">
-                                      <CalendarIcon className="h-4 w-4 mr-1" />
-                                      {formatDate(customer.created_at)}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                              )}
                             </div>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Empty State */}
             {((searchResults.total === 0 && hasSearched) || 
@@ -371,6 +345,22 @@ export default function ClientsPage() {
         {/* Initial State */}
         {!hasSearched && !loading && (
           <div className="text-center py-12">
+            <div className="flex justify-center space-x-8 mb-8">
+              <div className="flex flex-col items-center">
+                <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                  <UserIcon className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">Customers</h3>
+                <p className="text-sm text-gray-500">Individual people you interact with</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-3">
+                  <BuildingOfficeIcon className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">Clients</h3>
+                <p className="text-sm text-gray-500">Companies you provide accounting services for</p>
+              </div>
+            </div>
             <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900">Search for customers and clients</h3>
             <p className="mt-1 text-sm text-gray-500">
