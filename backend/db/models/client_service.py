@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, UniqueConstraint
+from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, UniqueConstraint, Numeric
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -17,6 +17,7 @@ class ClientService(Base):
     
     # Service assignment details
     is_enabled = Column(Boolean, default=False, nullable=False, index=True)
+    price = Column(Numeric(10, 2), nullable=True, comment="Custom price for this client-service combination")
     
     # System fields
     assigned_at = Column(DateTime(timezone=True), server_default=func.now())

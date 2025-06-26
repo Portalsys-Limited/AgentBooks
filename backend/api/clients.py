@@ -87,6 +87,7 @@ async def get_client_details(
             "name": service.name,
             "description": service.description,
             "is_enabled": client_service.is_enabled if client_service else False,
+            "price": float(client_service.price) if client_service and client_service.price else None,
             "assigned_at": client_service.assigned_at.isoformat() if client_service and client_service.assigned_at else None,
             "updated_at": client_service.updated_at.isoformat() if client_service and client_service.updated_at else None
         })
@@ -501,12 +502,15 @@ async def update_client(
                 if client_service:
                     # Update existing assignment
                     client_service.is_enabled = service_update.is_enabled
+                    if service_update.price is not None:
+                        client_service.price = service_update.price
                 else:
                     # Create new assignment
                     new_client_service = ClientService(
                         client_id=client_id,
                         service_id=service_update.service_id,
-                        is_enabled=service_update.is_enabled
+                        is_enabled=service_update.is_enabled,
+                        price=service_update.price
                     )
                     db.add(new_client_service)
         
