@@ -130,7 +130,8 @@ async def get_client_details(
                 "customer_id": str(assoc.customer_id),
                 "relationship_type": assoc.relationship_type.value,
                 "percentage_ownership": assoc.percentage_ownership,
-                "is_active": assoc.is_active
+                "is_active": assoc.is_active,
+                "is_primary_contact": assoc.is_primary_contact
             }
             for assoc in client.customer_associations
         ] if client.customer_associations else [],
@@ -659,6 +660,22 @@ async def create_client_customer_association(
                 detail=f"Association between this customer and client with relationship type '{association_data.relationship_type}' already exists"
             )
         
+        # Check if trying to set as primary contact and another primary contact already exists
+        if association_data.is_primary_contact:
+            existing_primary_result = await db.execute(
+                select(CustomerClientAssociation).where(
+                    CustomerClientAssociation.client_id == client_id,
+                    CustomerClientAssociation.is_primary_contact == True
+                )
+            )
+            existing_primary = existing_primary_result.scalar_one_or_none()
+            
+            if existing_primary:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="This client already has a primary contact. Please remove the existing primary contact designation first or set this association to not be primary."
+                )
+        
         # Create the association
         association = CustomerClientAssociation(
             customer_id=association_data.customer_id,
@@ -668,6 +685,7 @@ async def create_client_customer_association(
             appointment_date=association_data.appointment_date,
             resignation_date=association_data.resignation_date,
             is_active=association_data.is_active,
+            is_primary_contact=association_data.is_primary_contact or False,
             notes=association_data.notes
         )
         
@@ -758,6 +776,23 @@ async def update_client_customer_association(
                 detail="Not enough permissions to access this association"
             )
         
+        # Check if trying to set as primary contact and another primary contact already exists
+        if association_data.is_primary_contact is not None and association_data.is_primary_contact:
+            existing_primary_result = await db.execute(
+                select(CustomerClientAssociation).where(
+                    CustomerClientAssociation.client_id == client_id,
+                    CustomerClientAssociation.is_primary_contact == True,
+                    CustomerClientAssociation.id != association_id
+                )
+            )
+            existing_primary = existing_primary_result.scalar_one_or_none()
+            
+            if existing_primary:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="This client already has a primary contact. Please remove the existing primary contact designation first."
+                )
+        
         # Update fields that are provided
         if association_data.relationship_type is not None:
             association.relationship_type = association_data.relationship_type
@@ -769,6 +804,8 @@ async def update_client_customer_association(
             association.resignation_date = association_data.resignation_date
         if association_data.is_active is not None:
             association.is_active = association_data.is_active
+        if association_data.is_primary_contact is not None:
+            association.is_primary_contact = association_data.is_primary_contact
         if association_data.notes is not None:
             association.notes = association_data.notes
         
@@ -857,79 +894,6 @@ async def delete_client_customer_association(
             detail=f"Failed to delete association: {str(e)}"
         )
 
-@router.get("/{client_id}/associations")
-async def get_client_associations(
-    client_id: uuid.UUID,
-    current_user: UserSchema = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    📋 Get all associations for a client.
-    
-    This endpoint returns all customer associations for the specified client.
-    
-    Args:
-        client_id: Client ID
-        current_user: Authenticated user
-        db: Database session
-        
-    Returns:
-        List of client-customer associations
-    """
-    # Check permissions
-    if current_user.role not in [UserRole.practice_owner, UserRole.accountant, UserRole.bookkeeper]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions to view client associations"
-        )
-    
-    # Verify the client exists and user has access
-    result = await db.execute(select(Client).where(Client.id == client_id))
-    client = result.scalar_one_or_none()
-    
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found"
-        )
-    
-    if client.practice_id != current_user.practice_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions to access this client"
-        )
-    
-    # Get all associations for this client
-    result = await db.execute(
-        select(CustomerClientAssociation)
-        .options(selectinload(CustomerClientAssociation.customer))
-        .where(CustomerClientAssociation.client_id == client_id)
-    )
-    associations = result.scalars().all()
-    
-    return [
-        {
-            "id": str(assoc.id),
-            "customer_id": str(assoc.customer_id),
-            "client_id": str(assoc.client_id),
-            "relationship_type": assoc.relationship_type.value,
-            "percentage_ownership": assoc.percentage_ownership,
-            "appointment_date": assoc.appointment_date.isoformat() if assoc.appointment_date else None,
-            "resignation_date": assoc.resignation_date.isoformat() if assoc.resignation_date else None,
-            "is_active": assoc.is_active,
-            "notes": assoc.notes,
-            "created_at": assoc.created_at.isoformat(),
-            "updated_at": assoc.updated_at.isoformat() if assoc.updated_at else None,
-            "customer": {
-                "id": str(assoc.customer.id),
-                "name": assoc.customer.name,
-                "first_name": assoc.customer.first_name,
-                "last_name": assoc.customer.last_name,
-                "primary_email": assoc.customer.primary_email,
-                "primary_phone": assoc.customer.primary_phone
-            }
-        }
-        for assoc in associations
-    ]
+
 
 

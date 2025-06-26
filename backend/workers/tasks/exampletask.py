@@ -3,10 +3,7 @@ from celery.utils.log import get_task_logger
 import time
 import asyncio
 from typing import Dict, Any
-# Removed database imports to avoid import issues in worker context
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from config.database import get_db
-# from db.models import User as UserModel
+
 
 # Get task logger
 logger = get_task_logger(__name__)

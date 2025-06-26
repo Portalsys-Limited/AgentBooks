@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Text
+from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Text, Boolean, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -44,6 +44,9 @@ class CustomerClientAssociation(Base):
     resignation_date = Column(DateTime(timezone=True))
     is_active = Column(String, default="active")  # active, resigned, removed
     
+    # Primary contact designation
+    is_primary_contact = Column(Boolean, default=False, nullable=False, index=True)
+    
     # Additional details
     notes = Column(Text)
     
@@ -55,7 +58,11 @@ class CustomerClientAssociation(Base):
     customer = relationship("Customer", back_populates="client_associations")
     client = relationship("Client", back_populates="customer_associations")
     
-    # Ensure unique combinations (one customer can't have duplicate relationship types with same client)
+    # Constraints
     __table_args__ = (
-        {"schema": None}  # You can add unique constraints here if needed
+        # Ensure only one primary contact per client
+        UniqueConstraint('client_id', 'is_primary_contact', 
+                        name='uq_client_primary_contact',
+                        postgresql_where=Column('is_primary_contact') == True),
+        {"schema": None}
     ) 
