@@ -27,5 +27,32 @@ class Settings(BaseSettings):
     
     # Companies House API
     companies_house_api_key: Optional[str] = None
+    
+    # Redis & Celery
+    redis_host: str = "redis"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: Optional[str] = None
+    
+    @property
+    def redis_url(self) -> str:
+        """Build Redis URL from components."""
+        if self.redis_password:
+            return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
+        return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
+    
+    # Celery settings
+    celery_broker_url: Optional[str] = None
+    celery_result_backend: Optional[str] = None
+    
+    @property
+    def broker_url(self) -> str:
+        """Get Celery broker URL."""
+        return self.celery_broker_url or self.redis_url
+    
+    @property
+    def result_backend_url(self) -> str:
+        """Get Celery result backend URL."""
+        return self.celery_result_backend or self.redis_url
 
 settings = Settings() 

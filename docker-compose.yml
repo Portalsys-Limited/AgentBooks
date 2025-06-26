@@ -15,6 +15,17 @@ services:
 
 
 
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - agentbooks-network
+    command: redis-server --appendonly yes
+
   # FastAPI Backend
   backend:
     build:
@@ -26,11 +37,86 @@ services:
       - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres-backend:5432/agentbooks
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_TYPE=web
+      - WAIT_FOR_DB=true
+      - WAIT_FOR_REDIS=true
     depends_on:
       - postgres-backend
+      - redis
     volumes:
       - ./backend:/app
-    command: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    networks:
+      - agentbooks-network
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-backend:5432/agentbooks
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_TYPE=worker
+      - WAIT_FOR_DB=true
+      - WAIT_FOR_REDIS=true
+    depends_on:
+      - postgres-backend
+      - redis
+      - backend
+    volumes:
+      - ./backend:/app
+    networks:
+      - agentbooks-network
+
+  # Celery Beat (Scheduler)
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-backend:5432/agentbooks
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_TYPE=beat
+      - WAIT_FOR_DB=false
+      - WAIT_FOR_REDIS=true
+    depends_on:
+      - postgres-backend
+      - redis
+      - backend
+    volumes:
+      - ./backend:/app
+    networks:
+      - agentbooks-network
+
+  # Flower (Celery Monitoring)
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5555:5555"
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-backend:5432/agentbooks
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_TYPE=flower
+      - WAIT_FOR_DB=false
+      - WAIT_FOR_REDIS=true
+    depends_on:
+      - redis
+      - celery-worker
+    volumes:
+      - ./backend:/app
     networks:
       - agentbooks-network
 
@@ -39,14 +125,18 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres-backend:5432/agentbooks
+      - SERVICE_TYPE=seeder
+      - WAIT_FOR_DB=true
+      - WAIT_FOR_REDIS=false
     depends_on:
       - postgres-backend
       - backend
     volumes:
       - ./backend:/app
-    command: sh -c "sleep 10 && python seed_database.py"
     restart: "no"
     networks:
       - agentbooks-network
@@ -132,6 +222,7 @@ services:
 volumes:
   postgres_backend_data:
   pgadmin_data:
+  redis_data:
 
 networks:
   agentbooks-network:
