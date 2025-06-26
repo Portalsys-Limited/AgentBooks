@@ -13,6 +13,7 @@ class CustomerClientAssociationBase(BaseModel):
     appointment_date: Optional[datetime] = None
     resignation_date: Optional[datetime] = None
     is_active: Optional[str] = "active"
+    is_primary_contact: Optional[bool] = False
     notes: Optional[str] = None
 
 
@@ -29,6 +30,7 @@ class CustomerClientAssociationUpdate(BaseModel):
     appointment_date: Optional[datetime] = None
     resignation_date: Optional[datetime] = None
     is_active: Optional[str] = None
+    is_primary_contact: Optional[bool] = None
     notes: Optional[str] = None
 
 
@@ -105,6 +107,7 @@ class CustomerClientAssociationListItem(BaseModel):
     relationship_type: RelationshipType
     percentage_ownership: Optional[str] = None
     is_active: str
+    is_primary_contact: bool
     created_at: datetime
     
     class Config:
