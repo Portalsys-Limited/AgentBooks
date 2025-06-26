@@ -14,7 +14,7 @@ from sqlalchemy import delete
 from config.settings import settings
 from db.models.base import Base  # Import Base to access metadata
 from db.models import (
-    Practice, User, Customer, Client, CustomerClientAssociation, 
+    Practice, User, Customer, Client, CustomerClientAssociation, Service, ClientService,
     UserRole, BusinessType
 )
 from db.models.customer_client_association import RelationshipType
@@ -263,6 +263,122 @@ async def create_sample_data():
             await db.flush()
             print(f"✅ Created {len(created_associations)} customer-client associations")
             
+            # Create Services for the practice
+            services_data = [
+                {
+                    "service_code": "BOOK",
+                    "name": "Bookkeeping Services",
+                    "description": "Monthly bookkeeping including bank reconciliation, expense categorization, and financial reporting"
+                },
+                {
+                    "service_code": "PAYROLL",
+                    "name": "Payroll Services", 
+                    "description": "Full payroll processing including RTI submissions, pension contributions, and payslips"
+                },
+                {
+                    "service_code": "VAT",
+                    "name": "VAT Returns",
+                    "description": "Quarterly VAT return preparation and submission to HMRC"
+                },
+                {
+                    "service_code": "CT",
+                    "name": "Corporation Tax",
+                    "description": "Annual corporation tax return preparation and filing"
+                },
+                {
+                    "service_code": "ACCOUNTS",
+                    "name": "Annual Accounts",
+                    "description": "Preparation of statutory annual accounts for Companies House filing"
+                },
+                {
+                    "service_code": "MGMT",
+                    "name": "Management Accounts",
+                    "description": "Monthly management reporting including P&L, balance sheet, and key performance indicators"
+                },
+                {
+                    "service_code": "TAX_ADVICE",
+                    "name": "Tax Advisory",
+                    "description": "Strategic tax planning and advisory services"
+                },
+                {
+                    "service_code": "COMPLIANCE",
+                    "name": "Compliance Support",
+                    "description": "General compliance support including statutory filings and regulatory requirements"
+                }
+            ]
+            
+            services = []
+            for service_data in services_data:
+                service = Service(
+                    practice_id=practice.id,
+                    service_code=service_data["service_code"],
+                    name=service_data["name"],
+                    description=service_data["description"]
+                )
+                db.add(service)
+                services.append(service)
+            
+            await db.flush()
+            print(f"✅ Created {len(services)} services")
+            
+            # Create Client-Service assignments (realistic business scenarios)
+            client_service_assignments = [
+                # Portalsys Ltd (Technology company) - comprehensive services
+                {"client_idx": 0, "service_code": "BOOK", "enabled": True},
+                {"client_idx": 0, "service_code": "PAYROLL", "enabled": True},
+                {"client_idx": 0, "service_code": "VAT", "enabled": True},
+                {"client_idx": 0, "service_code": "CT", "enabled": True},
+                {"client_idx": 0, "service_code": "ACCOUNTS", "enabled": True},
+                {"client_idx": 0, "service_code": "MGMT", "enabled": True},
+                {"client_idx": 0, "service_code": "TAX_ADVICE", "enabled": False},  # Considering but not active
+                {"client_idx": 0, "service_code": "COMPLIANCE", "enabled": True},
+                
+                # ABCD Ltd (Manufacturing) - focused on core compliance
+                {"client_idx": 1, "service_code": "BOOK", "enabled": True},
+                {"client_idx": 1, "service_code": "PAYROLL", "enabled": True},
+                {"client_idx": 1, "service_code": "VAT", "enabled": True},
+                {"client_idx": 1, "service_code": "CT", "enabled": True},
+                {"client_idx": 1, "service_code": "ACCOUNTS", "enabled": True},
+                {"client_idx": 1, "service_code": "MGMT", "enabled": False},  # They do their own
+                {"client_idx": 1, "service_code": "TAX_ADVICE", "enabled": True},
+                {"client_idx": 1, "service_code": "COMPLIANCE", "enabled": True},
+                
+                # Harrison Bernstein Ltd (Professional services) - selective services
+                {"client_idx": 2, "service_code": "BOOK", "enabled": False},  # They handle internally
+                {"client_idx": 2, "service_code": "PAYROLL", "enabled": True},
+                {"client_idx": 2, "service_code": "VAT", "enabled": True},
+                {"client_idx": 2, "service_code": "CT", "enabled": True},
+                {"client_idx": 2, "service_code": "ACCOUNTS", "enabled": True},
+                {"client_idx": 2, "service_code": "MGMT", "enabled": False},
+                {"client_idx": 2, "service_code": "TAX_ADVICE", "enabled": True},
+                {"client_idx": 2, "service_code": "COMPLIANCE", "enabled": False},
+                
+                # Beckfields Store Ltd (Retail) - full service package
+                {"client_idx": 3, "service_code": "BOOK", "enabled": True},
+                {"client_idx": 3, "service_code": "PAYROLL", "enabled": True},
+                {"client_idx": 3, "service_code": "VAT", "enabled": True},
+                {"client_idx": 3, "service_code": "CT", "enabled": True},
+                {"client_idx": 3, "service_code": "ACCOUNTS", "enabled": True},
+                {"client_idx": 3, "service_code": "MGMT", "enabled": True},
+                {"client_idx": 3, "service_code": "TAX_ADVICE", "enabled": False},
+                {"client_idx": 3, "service_code": "COMPLIANCE", "enabled": True},
+            ]
+            
+            created_client_services = []
+            for assignment in client_service_assignments:
+                # Find the service by code
+                service = next(s for s in services if s.service_code == assignment["service_code"])
+                client_service = ClientService(
+                    client_id=clients[assignment["client_idx"]].id,
+                    service_id=service.id,
+                    is_enabled=assignment["enabled"]
+                )
+                db.add(client_service)
+                created_client_services.append(client_service)
+            
+            await db.flush()
+            print(f"✅ Created {len(created_client_services)} client-service assignments")
+            
             # Create essential users for testing
             password_hash = get_password_hash("admin")  # Password is "admin"
             
@@ -302,6 +418,8 @@ async def create_sample_data():
             print(f"Customers: {len(customers)}")
             print(f"Users: {len(created_users)}")
             print(f"Associations: {len(created_associations)}")
+            print(f"Services: {len(services)}")
+            print(f"Client-Service Assignments: {len(created_client_services)}")
             
             print("\n🏢 Clients & Primary Contacts:")
             for i, client in enumerate(clients):
@@ -329,6 +447,19 @@ async def create_sample_data():
             print("\n🔑 Login Credentials (all users have password 'admin'):")
             for user in created_users:
                 print(f"  {user.email} - {user.role.value}")
+            
+            print("\n🛠️ Available Services:")
+            for service in services:
+                print(f"  {service.service_code}: {service.name}")
+            
+            print("\n📋 Client Service Assignments:")
+            for i, client in enumerate(clients):
+                print(f"  {client.business_name}:")
+                client_assignments = [cs for cs in created_client_services if cs.client_id == client.id]
+                for cs in client_assignments:
+                    service = next(s for s in services if s.id == cs.service_id)
+                    status = "✅ ENABLED" if cs.is_enabled else "❌ DISABLED"
+                    print(f"    {service.service_code}: {service.name} {status}")
             
             print("\n📱 Twilio Testing Numbers:")
             for customer in customers:
