@@ -10,6 +10,7 @@ from db.models.client import BusinessType
 class ClientServiceUpdate(BaseModel):
     service_id: UUID
     is_enabled: bool
+    price: Optional[float] = None
 
 
 # Client creation request schema - flat structure
