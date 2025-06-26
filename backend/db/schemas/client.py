@@ -6,6 +6,12 @@ from uuid import UUID
 from db.models.client import BusinessType
 
 
+# Schema for updating client services
+class ClientServiceUpdate(BaseModel):
+    service_id: UUID
+    is_enabled: bool
+
+
 # Client creation request schema - flat structure
 class ClientCreateRequest(BaseModel):
     # Basic business information
@@ -154,6 +160,9 @@ class ClientUpdateRequest(BaseModel):
     # Additional information
     notes: Optional[str] = None
     risk_assessment: Optional[str] = None
+    
+    # Services assignment updates
+    services: Optional[List[ClientServiceUpdate]] = None
 
 
 # Client list item (summary view)

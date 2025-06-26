@@ -6,6 +6,8 @@ from .customer import Customer, Gender, MaritalStatus
 from .client import Client, BusinessType
 from .companies_house_profile import CompaniesHouseProfile
 from .customer_client_association import CustomerClientAssociation, RelationshipType
+from .service import Service
+from .client_service import ClientService
 from .message import Message, MessageType, MessageDirection, MessageStatus
 from .associations import user_client_association
 
@@ -23,6 +25,8 @@ __all__ = [
     'CompaniesHouseProfile',
     'CustomerClientAssociation',
     'RelationshipType',
+    'Service',
+    'ClientService',
     'Message',
     'MessageType',
     'MessageDirection',
