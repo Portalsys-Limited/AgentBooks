@@ -1,11 +1,11 @@
-// lib/services/search-service.ts
+// lib/search/service.ts
 // ==========================================
 // SEARCH SERVICE FUNCTIONS
 // Direct calls to backend search endpoints
 // ==========================================
 
 import { api } from '../api-client'
-import { SearchResult, SearchParams } from '../types'
+import { SearchResult, SearchParams } from './types'
 
 /**
  * Search for customers and clients with optional filtering

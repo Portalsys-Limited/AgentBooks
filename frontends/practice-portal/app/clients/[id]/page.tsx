@@ -132,17 +132,9 @@ export default function ClientDetailPage() {
 
   const fetchClient = async () => {
     try {
-      const response = await fetch(`/api/clients/${clientId}`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch client: ${response.status}`)
-      }
-
-      const data = await response.json()
+      // ✅ Use new service function
+      const { getClient } = await import('../../../lib/clients')
+      const data = await getClient(clientId)
       setClient(data)
     } catch (err) {
       console.error('Error fetching client:', err)
@@ -197,20 +189,9 @@ export default function ClientDetailPage() {
     
     setIsSaving(true)
     try {
-      const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:8000/clients/${clientId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(client)
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to update client: ${response.status}`)
-      }
-
+      // ✅ Use new service function
+      const { updateClient } = await import('../../../lib/clients')
+      await updateClient(clientId, client)
       setHasUnsavedChanges(false)
       // Show success message (you could add a toast notification here)
     } catch (err) {

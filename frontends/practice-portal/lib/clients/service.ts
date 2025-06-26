@@ -1,16 +1,12 @@
-// lib/services/client-service.ts
+// lib/clients/service.ts
 // ==========================================
 // CLIENT SERVICE FUNCTIONS
 // Direct calls to backend client endpoints
 // ==========================================
 
 import { api } from '../api-client'
-import { 
-  Client, 
-  CreateClientData, 
-  UpdateClientData,
-  PaginatedResponse 
-} from '../types'
+import { PaginatedResponse } from '../shared/types'
+import { Client, CreateClientData, UpdateClientData } from './types'
 
 /**
  * Get all clients

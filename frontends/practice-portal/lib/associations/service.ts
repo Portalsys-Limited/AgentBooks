@@ -1,15 +1,11 @@
-// lib/services/association-service.ts
+// lib/associations/service.ts
 // ==========================================
 // CUSTOMER-CLIENT ASSOCIATION SERVICE FUNCTIONS
 // Direct calls to backend association endpoints
 // ==========================================
 
 import { api } from '../api-client'
-import { 
-  CustomerClientAssociation, 
-  CreateAssociationData, 
-  UpdateAssociationData 
-} from '../types'
+import { CustomerClientAssociation, CreateAssociationData, UpdateAssociationData } from './types'
 
 /**
  * Create customer-client association

@@ -13,14 +13,16 @@ import {
   CalendarIcon
 } from '@heroicons/react/24/outline'
 
-// ✅ CLEAN: Import from centralized services
+// ✅ CLEAN: Import from organized lib structure
 import { 
   searchCustomersAndClients,
   type SearchResult,
-  type Customer,
-  type Client,
   ApiError
-} from '../../lib/services'
+} from '../../lib'
+
+// Import specific types from their modules
+import type { Customer } from '../../lib/customers'
+import type { Client } from '../../lib/clients'
 
 // Simple debounce implementation
 const debounce = (func: (...args: any[]) => void, delay: number) => {
