@@ -5,17 +5,18 @@ import { useAuth } from '../../hooks/useAuth'
 import { usePermissions } from '../../hooks/usePermissions'
 import AppLayout from '../../components/layout/AppLayout'
 import { UserPlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
-import { UserRole } from '../../types'
-
-interface User {
-  id: string
-  email: string
-  role: string
-  practice_id: string | null
-  client_ids: string[]
-  created_at: string
-  updated_at: string | null
-}
+import { 
+  getUsers,
+  getPracticeStaff,
+  getClientUsers,
+  createUser,
+  deleteUser,
+  getUserStats,
+  type User,
+  type UserRole,
+  type CreateUserData,
+  ApiError 
+} from '../../lib'
 
 export default function UsersPage() {
   const { user } = useAuth()
@@ -25,7 +26,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newUserEmail, setNewUserEmail] = useState('')
-  const [newUserRole, setNewUserRole] = useState<UserRole>(UserRole.BOOKKEEPER)
+  const [newUserRole, setNewUserRole] = useState<UserRole>('bookkeeper')
   const [creating, setCreating] = useState(false)
 
   useEffect(() => {
@@ -34,17 +35,8 @@ export default function UsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users', {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.status}`)
-      }
-
-      const data = await response.json()
+      // ✅ Use new user service
+      const data = await getUsers()
       setUsers(data)
     } catch (err) {
       console.error('Error fetching users:', err)
@@ -59,25 +51,16 @@ export default function UsersPage() {
 
     setCreating(true)
     try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email: newUserEmail.trim(),
-          role: newUserRole
-        })
+      // ✅ Use new user service
+      await createUser({ 
+        email: newUserEmail.trim(),
+        role: newUserRole
       })
-
-      if (!response.ok) {
-        throw new Error(`Failed to create user: ${response.status}`)
-      }
 
       await fetchUsers() // Refresh the list
       setShowCreateModal(false)
       setNewUserEmail('')
-      setNewUserRole(UserRole.BOOKKEEPER)
+      setNewUserRole('bookkeeper')
     } catch (err) {
       console.error('Error creating user:', err)
       setError(err instanceof Error ? err.message : 'Failed to create user')
@@ -90,17 +73,8 @@ export default function UsersPage() {
     if (!confirm('Are you sure you want to delete this user?')) return
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete user: ${response.status}`)
-      }
-
+      // ✅ Use new user service
+      await deleteUser(userId)
       await fetchUsers() // Refresh the list
     } catch (err) {
       console.error('Error deleting user:', err)
@@ -392,10 +366,10 @@ export default function UsersPage() {
                     onChange={(e) => setNewUserRole(e.target.value as UserRole)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value={UserRole.BOOKKEEPER}>Bookkeeper</option>
-                    <option value={UserRole.ACCOUNTANT}>Accountant</option>
-                    <option value={UserRole.PAYROLL}>Payroll</option>
-                    <option value={UserRole.PRACTICE_OWNER}>Practice Owner</option>
+                    <option value="bookkeeper">Bookkeeper</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="payroll">Payroll</option>
+                    <option value="practice_owner">Practice Owner</option>
                   </select>
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -403,7 +377,7 @@ export default function UsersPage() {
                     onClick={() => {
                       setShowCreateModal(false)
                       setNewUserEmail('')
-                      setNewUserRole(UserRole.BOOKKEEPER)
+                      setNewUserRole('bookkeeper')
                     }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                   >

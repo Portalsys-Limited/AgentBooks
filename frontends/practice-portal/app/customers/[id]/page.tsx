@@ -92,17 +92,9 @@ export default function CustomerDetailPage() {
 
   const fetchCustomer = async () => {
     try {
-      const response = await fetch(`/api/customers/${customerId}`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch customer: ${response.status}`)
-      }
-
-      const data = await response.json()
+      // ✅ Use new service function
+      const { getCustomer } = await import('../../../lib/customers')
+      const data = await getCustomer(customerId)
       setCustomer(data)
     } catch (err) {
       console.error('Error fetching customer:', err)
