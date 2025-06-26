@@ -306,9 +306,9 @@ async def create_sample_data():
             print("\n🏢 Clients & Primary Contacts:")
             for i, client in enumerate(clients):
                 # Find primary contact for this client
-                primary_assoc = next((a for a in created_associations if clients[associations_data[associations_data.index(next(ad for ad in associations_data if ad["client_idx"] == i and ad["is_primary"]))]["customer_idx"]].id == a.customer_id and a.client_id == client.id and a.is_primary_contact), None)
-                primary_customer = next((c for c in customers if any(ad["customer_idx"] == customers.index(c) and ad["client_idx"] == i and ad["is_primary"] for ad in associations_data)), None)
-                if primary_customer:
+                primary_assoc_data = next((ad for ad in associations_data if ad["client_idx"] == i and ad["is_primary"]), None)
+                if primary_assoc_data:
+                    primary_customer = customers[primary_assoc_data["customer_idx"]]
                     print(f"  {client.business_name} - Primary: {primary_customer.name} ({primary_customer.primary_phone})")
                 else:
                     print(f"  {client.business_name} - No primary contact found")
