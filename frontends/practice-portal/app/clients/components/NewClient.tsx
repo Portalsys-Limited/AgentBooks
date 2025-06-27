@@ -15,23 +15,7 @@ import DocumentsTab from '../[id]/components/tabs/DocumentsTab'
 import HMRCApi from './HMRCApi'
 import { createClient } from '../../../lib/clients'
 import type { CreateClientData } from '../../../lib/clients/types'
-
-interface CompanySearchResult {
-  company_name: string
-  company_number: string
-  company_status: string
-  company_type: string
-  date_of_creation?: string
-  registered_office_address?: {
-    address_line_1?: string
-    address_line_2?: string
-    locality?: string
-    region?: string
-    postal_code?: string
-    country?: string
-  }
-  description?: string
-}
+import type { CompanySelectionData } from '../../../lib/companies_house'
 
 interface ClientFormData extends CreateClientData {
   id?: string
@@ -82,7 +66,7 @@ interface NewClientProps {
 export default function NewClient({ onCancel }: NewClientProps) {
   const { user } = useAuth()
   const router = useRouter()
-  const [showHMRCSearch, setShowHMRCSearch] = useState(false)
+  const [showHMRCSearch, setShowHMRCSearch] = useState(true)
   const [showClientForm, setShowClientForm] = useState(false)
   
   const [client, setClient] = useState<ClientFormData>({
@@ -116,15 +100,23 @@ export default function NewClient({ onCancel }: NewClientProps) {
     { id: 'documents', name: 'Documents', icon: FolderIcon }
   ]
 
-  const handleCompanySelect = (company: CompanySearchResult) => {
+  const handleCompanySelect = (company: CompanySelectionData) => {
     // Pre-populate client data with Companies House information
+    console.log('Selected company:', company) // For debugging
+    
     setClient(prev => ({
       ...prev,
       business_name: company.company_name || '',
       name: company.company_name || '',
       companies_house_number: company.company_number || '',
-      business_type: company.company_type.toLowerCase().includes('ltd') ? 'limited_company' : 'other',
+      business_type: company.company_type.toLowerCase().includes('ltd') ? 'limited_company' : 
+                    company.company_type.toLowerCase().includes('plc') ? 'public_limited_company' :
+                    company.company_type.toLowerCase().includes('partnership') ? 'partnership' :
+                    company.company_type.toLowerCase().includes('sole') ? 'sole_trader' : 'other',
       incorporation_date: company.date_of_creation || '',
+      nature_of_business: company.description || '',
+      
+      // Handle registered address
       registered_address: company.registered_office_address ? {
         line_1: company.registered_office_address.address_line_1 || '',
         line_2: company.registered_office_address.address_line_2 || '',
@@ -133,6 +125,7 @@ export default function NewClient({ onCancel }: NewClientProps) {
         postcode: company.registered_office_address.postal_code || '',
         country: company.registered_office_address.country || 'United Kingdom',
       } : undefined,
+      
       // Map registered address to client address fields for the form
       address_line1: company.registered_office_address?.address_line_1 || '',
       address_line2: company.registered_office_address?.address_line_2 || '',
@@ -140,10 +133,17 @@ export default function NewClient({ onCancel }: NewClientProps) {
       state: company.registered_office_address?.region || '',
       postal_code: company.registered_office_address?.postal_code || '',
       country: company.registered_office_address?.country || 'United Kingdom',
+      
+      // Set auto-fill flag if requested
+      auto_fill_companies_house: company.auto_fill_requested || false
     }))
+    
     setHasUnsavedChanges(true)
     setShowHMRCSearch(false)
     setShowClientForm(true)
+    
+    // Show a success message to user
+    console.log(`Successfully pre-populated client data for ${company.company_name}`)
   }
 
   const handleClose = () => {
@@ -278,20 +278,6 @@ export default function NewClient({ onCancel }: NewClientProps) {
       default:
         return null
     }
-  }
-
-  if (!showHMRCSearch && !showClientForm) {
-    return (
-      <div className="flex items-center justify-between p-4 sm:px-6 lg:px-8">
-        <button
-          onClick={() => setShowHMRCSearch(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-          Add New Client
-        </button>
-      </div>
-    )
   }
 
   return (

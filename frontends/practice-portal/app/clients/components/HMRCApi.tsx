@@ -1,34 +1,24 @@
 'use client'
 
 import React, { useState } from 'react'
-import { MagnifyingGlassIcon, BuildingOfficeIcon, XMarkIcon } from '@heroicons/react/24/outline'
-
-interface CompanySearchResult {
-  company_name: string
-  company_number: string
-  company_status: string
-  company_type: string
-  date_of_creation?: string
-  registered_office_address?: {
-    address_line_1?: string
-    address_line_2?: string
-    locality?: string
-    region?: string
-    postal_code?: string
-    country?: string
-  }
-  description?: string
-}
+import { MagnifyingGlassIcon, BuildingOfficeIcon, XMarkIcon, MapPinIcon, CalendarIcon } from '@heroicons/react/24/outline'
+import { 
+  searchCompaniesHouse, 
+  formatCompaniesHouseAddress, 
+  formatCompanyStatus,
+  type CompaniesHouseSearchResult,
+  type CompanySelectionData
+} from '../../../lib/companies_house'
 
 interface HMRCApiProps {
-  onCompanySelect: (company: CompanySearchResult) => void
+  onCompanySelect: (company: CompanySelectionData) => void
   onCreateManually: () => void
   onClose: () => void
 }
 
 export default function HMRCApi({ onCompanySelect, onCreateManually, onClose }: HMRCApiProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<CompanySearchResult[]>([])
+  const [searchResults, setSearchResults] = useState<CompaniesHouseSearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
@@ -42,37 +32,45 @@ export default function HMRCApi({ onCompanySelect, onCreateManually, onClose }: 
     setHasSearched(true)
 
     try {
-      // Call Companies House API search endpoint
-      const response = await fetch(`/api/companies-house/search?q=${encodeURIComponent(searchQuery.trim())}&items_per_page=20`)
+      // Use the proper Companies House service function
+      const response = await searchCompaniesHouse(searchQuery.trim(), 20, 0)
       
-      if (!response.ok) {
-        throw new Error('Failed to search companies')
-      }
-
-      const data = await response.json()
-      
-      if (data.success && data.results?.items) {
-        setSearchResults(data.results.items)
+      if (response.success && response.results?.items) {
+        // Ensure we have all required fields in the search results
+        const validatedResults = response.results.items.map(item => ({
+          ...item,
+          company_name: item.company_name || '',
+          company_number: item.company_number || '',
+          company_status: item.company_status || 'unknown',
+          company_type: item.company_type || 'unknown'
+        }))
+        setSearchResults(validatedResults)
       } else {
         setSearchResults([])
       }
     } catch (err) {
       console.error('Search error:', err)
-      setError(err instanceof Error ? err.message : 'Search failed')
+      setError(err instanceof Error ? err.message : 'Search failed. Please try again.')
       setSearchResults([])
     } finally {
       setLoading(false)
     }
   }
 
-  const formatAddress = (address?: any) => {
-    if (!address) return ''
-    const parts = [
-      address.address_line_1,
-      address.locality,
-      address.postal_code
-    ].filter(Boolean)
-    return parts.join(', ')
+  const handleCompanySelect = (company: CompaniesHouseSearchResult) => {
+    // Add selection metadata to the company data
+    const selectionData: CompanySelectionData = {
+      ...company,
+      company_name: company.company_name || '',  // Ensure required fields are present
+      company_number: company.company_number || '',
+      company_status: company.company_status || 'unknown',
+      company_type: company.company_type || 'unknown',
+      selected_at: new Date().toISOString(),
+      auto_fill_requested: true
+    }
+    
+    console.log('Selected company data:', selectionData)  // Debug log
+    onCompanySelect(selectionData)
   }
 
   return (
@@ -82,7 +80,7 @@ export default function HMRCApi({ onCompanySelect, onCreateManually, onClose }: 
           <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
         </div>
 
-        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full sm:p-6">
           <div className="absolute top-0 right-0 pt-4 pr-4">
             <button
               onClick={onClose}
@@ -98,7 +96,7 @@ export default function HMRCApi({ onCompanySelect, onCreateManually, onClose }: 
                 Search Companies House
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                Search for a company to auto-populate client details, or create a client manually.
+                Search the official UK government database to find a company and auto-populate client details, or create a client manually.
               </p>
 
               {/* Search Form */}
@@ -166,51 +164,78 @@ export default function HMRCApi({ onCompanySelect, onCreateManually, onClose }: 
                   {searchResults.length > 0 && (
                     <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-md">
                       <ul className="divide-y divide-gray-200">
-                        {searchResults.map((company) => (
-                          <li key={company.company_number}>
-                            <button
-                              onClick={() => onCompanySelect(company)}
-                              className="w-full text-left px-4 py-3 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-start space-x-3">
-                                  <div className="flex-shrink-0 mt-1">
-                                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                                      <BuildingOfficeIcon className="h-4 w-4 text-green-600" />
-                                    </div>
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {company.company_name}
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                      {company.company_number} • {company.company_type}
-                                    </div>
-                                    {company.registered_office_address && (
-                                      <div className="text-sm text-gray-500 mt-1">
-                                        {formatAddress(company.registered_office_address)}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex-shrink-0 text-right">
-                                  <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                    company.company_status === 'active' 
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-gray-100 text-gray-800'
+                        {searchResults.map((company) => {
+                          const statusFormat = formatCompanyStatus(company.company_status)
+                          const companyName = company.company_name || 'Unknown Company'
+                          const companyNumber = company.company_number
+                          const incorporationDate = company.date_of_creation
+                            ? `Incorporated on ${new Date(company.date_of_creation).toLocaleDateString('en-GB')}`
+                            : ''
+                          
+                          return (
+                            <li key={company.company_number}>
+                              <button
+                                onClick={() => handleCompanySelect(company)}
+                                className="w-full text-left px-4 py-4 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+                                    statusFormat.variant === 'success' ? 'bg-green-100' :
+                                    statusFormat.variant === 'warning' ? 'bg-yellow-100' :
+                                    statusFormat.variant === 'error' ? 'bg-red-100' :
+                                    'bg-gray-100'
                                   }`}>
-                                    {company.company_status}
+                                    <BuildingOfficeIcon className={`h-5 w-5 ${
+                                      statusFormat.variant === 'success' ? 'text-green-600' :
+                                      statusFormat.variant === 'warning' ? 'text-yellow-600' :
+                                      statusFormat.variant === 'error' ? 'text-red-600' :
+                                      'text-gray-600'
+                                    }`} />
                                   </div>
-                                  {company.date_of_creation && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      Est. {new Date(company.date_of_creation).getFullYear()}
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        {/* Company Name */}
+                                        <div className="text-base font-medium text-gray-900">
+                                          {companyName}
+                                        </div>
+                                        
+                                        {/* Company Number and Status */}
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                          <span className="font-mono">{companyNumber}</span>
+                                          <span>•</span>
+                                          <span>Ltd</span>
+                                          {company.date_of_creation && (
+                                            <>
+                                              <span>•</span>
+                                              <span>Est. {new Date(company.date_of_creation).getFullYear()}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Incorporation Date */}
+                                        <div className="text-sm text-gray-500">
+                                          {incorporationDate}
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Status Badge */}
+                                      <div className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        statusFormat.variant === 'success' ? 'bg-green-100 text-green-800' :
+                                        statusFormat.variant === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                                        statusFormat.variant === 'error' ? 'bg-red-100 text-red-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {statusFormat.label}
+                                      </div>
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
-                              </div>
-                            </button>
-                          </li>
-                        ))}
+                              </button>
+                            </li>
+                          )
+                        })}
                       </ul>
                     </div>
                   )}
@@ -220,7 +245,7 @@ export default function HMRCApi({ onCompanySelect, onCreateManually, onClose }: 
                       <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">No companies found</h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        Try adjusting your search terms.
+                        Try adjusting your search terms or check the spelling.
                       </p>
                     </div>
                   )}
@@ -233,7 +258,7 @@ export default function HMRCApi({ onCompanySelect, onCreateManually, onClose }: 
                   <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">Search Companies House Database</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    Find a company to automatically populate client details with official data.
+                    Find a company to automatically populate client details with official government data.
                   </p>
                 </div>
               )}
