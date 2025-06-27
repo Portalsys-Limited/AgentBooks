@@ -321,47 +321,47 @@ async def create_sample_data():
             await db.flush()
             print(f"✅ Created {len(services)} services")
             
-            # Create Client-Service assignments (realistic business scenarios)
+            # Create Client-Service assignments (realistic business scenarios with pricing)
             client_service_assignments = [
-                # Portalsys Ltd (Technology company) - comprehensive services
-                {"client_idx": 0, "service_code": "BOOK", "enabled": True},
-                {"client_idx": 0, "service_code": "PAYROLL", "enabled": True},
-                {"client_idx": 0, "service_code": "VAT", "enabled": True},
-                {"client_idx": 0, "service_code": "CT", "enabled": True},
-                {"client_idx": 0, "service_code": "ACCOUNTS", "enabled": True},
-                {"client_idx": 0, "service_code": "MGMT", "enabled": True},
-                {"client_idx": 0, "service_code": "TAX_ADVICE", "enabled": False},  # Considering but not active
-                {"client_idx": 0, "service_code": "COMPLIANCE", "enabled": True},
+                # Portalsys Ltd (Technology company) - comprehensive services with premium pricing
+                {"client_idx": 0, "service_code": "BOOK", "enabled": True, "price": 850.00},
+                {"client_idx": 0, "service_code": "PAYROLL", "enabled": True, "price": 125.00},
+                {"client_idx": 0, "service_code": "VAT", "enabled": True, "price": 195.00},
+                {"client_idx": 0, "service_code": "CT", "enabled": True, "price": 750.00},
+                {"client_idx": 0, "service_code": "ACCOUNTS", "enabled": True, "price": 1200.00},
+                {"client_idx": 0, "service_code": "MGMT", "enabled": True, "price": 450.00},
+                {"client_idx": 0, "service_code": "TAX_ADVICE", "enabled": False, "price": 150.00},  # Considering but not active
+                {"client_idx": 0, "service_code": "COMPLIANCE", "enabled": True, "price": 300.00},
                 
-                # ABCD Ltd (Manufacturing) - focused on core compliance
-                {"client_idx": 1, "service_code": "BOOK", "enabled": True},
-                {"client_idx": 1, "service_code": "PAYROLL", "enabled": True},
-                {"client_idx": 1, "service_code": "VAT", "enabled": True},
-                {"client_idx": 1, "service_code": "CT", "enabled": True},
-                {"client_idx": 1, "service_code": "ACCOUNTS", "enabled": True},
-                {"client_idx": 1, "service_code": "MGMT", "enabled": False},  # They do their own
-                {"client_idx": 1, "service_code": "TAX_ADVICE", "enabled": True},
-                {"client_idx": 1, "service_code": "COMPLIANCE", "enabled": True},
+                # ABCD Ltd (Manufacturing) - standard pricing for established client
+                {"client_idx": 1, "service_code": "BOOK", "enabled": True, "price": 650.00},
+                {"client_idx": 1, "service_code": "PAYROLL", "enabled": True, "price": 95.00},
+                {"client_idx": 1, "service_code": "VAT", "enabled": True, "price": 150.00},
+                {"client_idx": 1, "service_code": "CT", "enabled": True, "price": 650.00},
+                {"client_idx": 1, "service_code": "ACCOUNTS", "enabled": True, "price": 950.00},
+                {"client_idx": 1, "service_code": "MGMT", "enabled": False, "price": 350.00},  # They do their own
+                {"client_idx": 1, "service_code": "TAX_ADVICE", "enabled": True, "price": 200.00},
+                {"client_idx": 1, "service_code": "COMPLIANCE", "enabled": True, "price": 250.00},
                 
-                # Harrison Bernstein Ltd (Professional services) - selective services
-                {"client_idx": 2, "service_code": "BOOK", "enabled": False},  # They handle internally
-                {"client_idx": 2, "service_code": "PAYROLL", "enabled": True},
-                {"client_idx": 2, "service_code": "VAT", "enabled": True},
-                {"client_idx": 2, "service_code": "CT", "enabled": True},
-                {"client_idx": 2, "service_code": "ACCOUNTS", "enabled": True},
-                {"client_idx": 2, "service_code": "MGMT", "enabled": False},
-                {"client_idx": 2, "service_code": "TAX_ADVICE", "enabled": True},
-                {"client_idx": 2, "service_code": "COMPLIANCE", "enabled": False},
+                # Harrison Bernstein Ltd (Professional services) - selective services with professional rates
+                {"client_idx": 2, "service_code": "BOOK", "enabled": False, "price": 750.00},  # They handle internally
+                {"client_idx": 2, "service_code": "PAYROLL", "enabled": True, "price": 110.00},
+                {"client_idx": 2, "service_code": "VAT", "enabled": True, "price": 175.00},
+                {"client_idx": 2, "service_code": "CT", "enabled": True, "price": 700.00},
+                {"client_idx": 2, "service_code": "ACCOUNTS", "enabled": True, "price": 1100.00},
+                {"client_idx": 2, "service_code": "MGMT", "enabled": False, "price": 400.00},
+                {"client_idx": 2, "service_code": "TAX_ADVICE", "enabled": True, "price": 180.00},
+                {"client_idx": 2, "service_code": "COMPLIANCE", "enabled": False, "price": 275.00},
                 
-                # Beckfields Store Ltd (Retail) - full service package
-                {"client_idx": 3, "service_code": "BOOK", "enabled": True},
-                {"client_idx": 3, "service_code": "PAYROLL", "enabled": True},
-                {"client_idx": 3, "service_code": "VAT", "enabled": True},
-                {"client_idx": 3, "service_code": "CT", "enabled": True},
-                {"client_idx": 3, "service_code": "ACCOUNTS", "enabled": True},
-                {"client_idx": 3, "service_code": "MGMT", "enabled": True},
-                {"client_idx": 3, "service_code": "TAX_ADVICE", "enabled": False},
-                {"client_idx": 3, "service_code": "COMPLIANCE", "enabled": True},
+                # Beckfields Store Ltd (Retail) - competitive pricing for full service package
+                {"client_idx": 3, "service_code": "BOOK", "enabled": True, "price": 550.00},
+                {"client_idx": 3, "service_code": "PAYROLL", "enabled": True, "price": 85.00},
+                {"client_idx": 3, "service_code": "VAT", "enabled": True, "price": 135.00},
+                {"client_idx": 3, "service_code": "CT", "enabled": True, "price": 600.00},
+                {"client_idx": 3, "service_code": "ACCOUNTS", "enabled": True, "price": 850.00},
+                {"client_idx": 3, "service_code": "MGMT", "enabled": True, "price": 320.00},
+                {"client_idx": 3, "service_code": "TAX_ADVICE", "enabled": False, "price": 140.00},
+                {"client_idx": 3, "service_code": "COMPLIANCE", "enabled": True, "price": 220.00},
             ]
             
             created_client_services = []
@@ -371,7 +371,8 @@ async def create_sample_data():
                 client_service = ClientService(
                     client_id=clients[assignment["client_idx"]].id,
                     service_id=service.id,
-                    is_enabled=assignment["enabled"]
+                    is_enabled=assignment["enabled"],
+                    price=assignment["price"]
                 )
                 db.add(client_service)
                 created_client_services.append(client_service)
@@ -459,7 +460,8 @@ async def create_sample_data():
                 for cs in client_assignments:
                     service = next(s for s in services if s.id == cs.service_id)
                     status = "✅ ENABLED" if cs.is_enabled else "❌ DISABLED"
-                    print(f"    {service.service_code}: {service.name} {status}")
+                    price_info = f"£{cs.price:.2f}" if cs.price else "No price"
+                    print(f"    {service.service_code}: {service.name} {status} ({price_info})")
             
             print("\n📱 Twilio Testing Numbers:")
             for customer in customers:
