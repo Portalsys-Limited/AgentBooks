@@ -9,6 +9,7 @@ from .customer_client_association import CustomerClientAssociation, Relationship
 from .service import Service
 from .client_service import ClientService
 from .message import Message, MessageType, MessageDirection, MessageStatus
+from .documents import Document, DocumentType, DocumentSource, DocumentAgentState
 from .associations import user_client_association
 
 # Re-export everything for backward compatibility
@@ -31,5 +32,9 @@ __all__ = [
     'MessageType',
     'MessageDirection',
     'MessageStatus',
+    'Document',
+    'DocumentType',
+    'DocumentSource',
+    'DocumentAgentState',
     'user_client_association'
 ] 

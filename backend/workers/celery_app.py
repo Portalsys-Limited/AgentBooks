@@ -7,7 +7,7 @@ celery_app = Celery(
     "agentbooks_worker",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["workers.tasks"]
+    include=["workers.tasks", "workers.tasks.whatsapp_processor"]
 )
 
 # Celery configuration
@@ -34,6 +34,9 @@ celery_app.conf.update(
     task_default_retry_delay=60,  # 1 minute
     task_max_retries=3,
     
+    # Broker connection settings
+    broker_connection_retry_on_startup=True,
+    
     # Beat schedule (for periodic tasks)
     beat_schedule={
         "example-periodic-task": {
@@ -44,7 +47,7 @@ celery_app.conf.update(
 )
 
 # Auto-discover tasks
-celery_app.autodiscover_tasks(["workers.tasks"])
+celery_app.autodiscover_tasks(["workers.tasks", "workers.tasks.whatsapp_processor"])
 
 if __name__ == "__main__":
     celery_app.start() 

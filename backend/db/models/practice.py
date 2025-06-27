@@ -26,4 +26,5 @@ class Practice(Base):
     customers = relationship("Customer", back_populates="practice")
     clients = relationship("Client", back_populates="practice")
     messages = relationship("Message", back_populates="practice")
-    services = relationship("Service", back_populates="practice", cascade="all, delete-orphan") 
+    services = relationship("Service", back_populates="practice", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="practice") 
