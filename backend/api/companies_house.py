@@ -41,14 +41,37 @@ async def search_companies(
             start_index=start_index
         )
         
+        # Transform the raw API response into our expected format
+        formatted_results = {
+            "items": [],
+            "total_results": search_results.get("total_results", 0) if search_results else 0,
+            "items_per_page": items_per_page,
+            "start_index": start_index
+        }
+        
+        if search_results and "items" in search_results:
+            formatted_results["items"] = [
+                {
+                    "company_name": item.get("title", ""),  # Companies House API uses "title" for company name
+                    "company_number": item.get("company_number", ""),
+                    "company_status": item.get("company_status", ""),
+                    "company_type": item.get("company_type", ""),
+                    "date_of_creation": item.get("date_of_creation"),
+                    "registered_office_address": item.get("address", {}),  # Companies House API uses "address"
+                    "description": item.get("description", ""),
+                    "links": item.get("links", {})
+                }
+                for item in search_results["items"]
+            ]
+        
         return {
             "success": True,
-            "results": search_results,
+            "results": formatted_results,
             "query": q,
             "pagination": {
                 "items_per_page": items_per_page,
                 "start_index": start_index,
-                "total_results": search_results.get("total_results") if search_results else 0
+                "total_results": formatted_results["total_results"]
             }
         }
     
