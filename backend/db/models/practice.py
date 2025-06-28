@@ -23,6 +23,7 @@ class Practice(Base):
     
     # Relationships
     users = relationship("User", back_populates="practice")
+    individuals = relationship("Individual", back_populates="practice")
     customers = relationship("Customer", back_populates="practice")
     clients = relationship("Client", back_populates="practice")
     messages = relationship("Message", back_populates="practice")
