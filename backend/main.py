@@ -7,6 +7,7 @@ from api.auth import router as auth_router
 from api.users import router as users_router
 from api.customers import router as customers_router
 from api.clients import router as clients_router
+from api.individuals import router as individuals_router
 from api.search import router as search_router
 from api.messages import router as messages_router
 from api.companies_house import router as companies_house_router
@@ -39,6 +40,7 @@ app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/users", tags=["Users"])
 app.include_router(customers_router, prefix="/customers", tags=["Customers"])
 app.include_router(clients_router, prefix="/clients", tags=["Clients"])
+app.include_router(individuals_router, prefix="/individuals", tags=["Individuals"])
 app.include_router(search_router, prefix="/search", tags=["Search"])
 app.include_router(messages_router, prefix="/messages", tags=["Messages"])
 app.include_router(companies_house_router, prefix="/companies-house", tags=["Companies House"])
