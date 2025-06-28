@@ -194,13 +194,11 @@ class WhatsAppTools:
             practice_info = {
                 "id": str(self.practice.id),
                 "name": self.practice.name,
-                "address": self.practice.address,
-                "email": self.practice.email,
-                "phone": self.practice.phone,
-                "website": self.practice.website,
-                "registration_number": self.practice.registration_number,
-                "services": self.practice.services,
-                "description": self.practice.description
+                "whatsapp_number": self.practice.whatsapp_number,
+                "main_phone": self.practice.main_phone,
+                "main_email": self.practice.main_email,
+                "created_at": self.practice.created_at.isoformat() if self.practice.created_at else None,
+                "updated_at": self.practice.updated_at.isoformat() if self.practice.updated_at else None
             }
             
             return practice_info

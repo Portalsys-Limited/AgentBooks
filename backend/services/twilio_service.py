@@ -1,8 +1,9 @@
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -16,20 +17,36 @@ class TwilioService:
         
         self.client = Client(self.account_sid, self.auth_token)
     
-    async def send_whatsapp_message(self, to_phone: str, message_body: str, from_whatsapp_number: str, media_url: Optional[str] = None) -> Dict[str, Any]:
+    async def send_whatsapp_message(
+        self, 
+        to_phone: str, 
+        from_whatsapp_number: str, 
+        message_body: Optional[str] = None, 
+        media_url: Optional[str] = None, 
+        interactive_content: Optional[Dict[str, Any]] = None,
+        content_sid: Optional[str] = None,
+        content_variables: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
         """
-        Send a WhatsApp message using Twilio
+        Send a WhatsApp message using Twilio.
+        Can send a simple text message, a complex interactive one, or a templated message.
         
         Args:
             to_phone: Phone number in E.164 format (e.g., +1234567890)
-            message_body: The message text
             from_whatsapp_number: The practice's WhatsApp number (e.g., whatsapp:+14155238886)
-            media_url: Optional media URL for images/documents
+            message_body: The message text. Used as a fallback or for simple text messages.
+            media_url: Optional media URL for images/documents.
+            interactive_content: A dictionary representing the full interactive message payload.
+            content_sid: The SID of the template to use.
+            content_variables: A dictionary of variables to populate the template.
             
         Returns:
             Dict containing message SID and status, or error information
         """
         try:
+            if not any([message_body, interactive_content, media_url, content_sid]):
+                raise ValueError("At least one message content parameter must be provided.")
+
             # Ensure phone number is in WhatsApp format
             if not to_phone.startswith("whatsapp:"):
                 to_phone = f"whatsapp:{to_phone}"
@@ -39,12 +56,23 @@ class TwilioService:
                 from_whatsapp_number = f"whatsapp:{from_whatsapp_number}"
             
             message_params = {
-                "body": message_body,
                 "from_": from_whatsapp_number,
                 "to": to_phone
             }
+
+            if content_sid:
+                message_params["content_sid"] = content_sid
+                if content_variables:
+                    message_params["content_variables"] = json.dumps(content_variables)
+            elif interactive_content:
+                # The 'Content' parameter (with a capital C) is used for freeform interactive messages.
+                message_params["Content"] = json.dumps(interactive_content)
+                if message_body:
+                    # For some channels, a body is still required as a fallback.
+                    message_params["body"] = message_body
+            elif message_body:
+                message_params["body"] = message_body
             
-            # Add media if provided
             if media_url:
                 message_params["media_url"] = [media_url]
             
