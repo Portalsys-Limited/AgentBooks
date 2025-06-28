@@ -10,7 +10,6 @@ from .service import Service
 from .client_service import ClientService
 from .message import Message, MessageType, MessageDirection, MessageStatus
 from .documents import Document, DocumentType, DocumentSource, DocumentAgentState
-from .associations import user_client_association
 from .individuals import Individual
 from .income import Income, IncomeType
 from .property import Property, PropertyType, PropertyStatus
@@ -47,7 +46,6 @@ __all__ = [
     'DocumentType',
     'DocumentSource',
     'DocumentAgentState',
-    'user_client_association',
     'Individual',
     'Income',
     'IncomeType',

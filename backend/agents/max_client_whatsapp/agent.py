@@ -6,30 +6,31 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import List, Dict, Any
 
-from db.models import Message, Customer, Practice, Document
+from db.models import Message, Individual, Practice, Document
 from .chat_agent import chat_agent
 from .document_agent import document_agent
+from .tools import WhatsAppTools
 
-SUPERVISOR_PROMPT = """# WhatsApp Customer Service Supervisor - {practice_name}
+SUPERVISOR_PROMPT = """# WhatsApp Service Supervisor - {practice_name}
 
-You are an intelligent supervisor managing customer communications for {practice_name}, an accounting practice.
+You are an intelligent supervisor managing communications for {practice_name}, an accounting practice.
 
-**Customer:** {customer_name} ({customer_phone})
+**Individual:** {individual_name} ({individual_phone})
 
 {conversation_history}
 
-You coordinate two specialized agents to provide comprehensive customer service:
+You coordinate two specialized agents to provide comprehensive service:
 
 ---
 
 ## 💬 Chat Agent  
-Handles general customer service including:
+Handles general service including:
 - Greetings and general conversation
 - Questions about services and processes
 - Appointment scheduling requests
 - Status updates and follow-ups
 - General inquiries about accounting services
-- Customer support and relationship management
+- Support and relationship management
 
 ---
 
@@ -49,13 +50,13 @@ Handles all document-related tasks including:
 - General greetings ("Hello", "Hi", "Good morning")
 - Questions about services ("What do you offer?", "How much does it cost?")
 - Appointment requests ("Can I schedule a meeting?")
-- General conversation and customer service
+- General conversation and service
 - When in doubt about general inquiries
 
 **Route to Document Agent when:**
 - Documents are attached to the message
 - Message mentions documents, invoices, receipts, uploads, files
-- Customer asks about document processing or analysis
+- Individual asks about document processing or analysis
 - Any document-related keywords are present
 
 ---
@@ -66,7 +67,7 @@ Handles all document-related tasks including:
 - Route based on message content and context
 - Consider the conversation history when routing
 - Provide professional, friendly service
-- Ensure customer receives appropriate expertise for their needs
+- Ensure individual receives appropriate expertise for their needs
 
 ---
 """
@@ -74,53 +75,46 @@ Handles all document-related tasks including:
 class MaxClientWhatsAppAgent:
     """
     LangGraph Supervisor-based WhatsApp Agent using langgraph_supervisor.
-    Coordinates document and chat agents for comprehensive customer service.
+    Coordinates document and chat agents for comprehensive service.
     """
     
-    def __init__(self, practice: Practice, customer: Customer, db_session: Session):
+    def __init__(self, practice: Practice, individual: Individual, db_session: Session):
         self.practice = practice
-        self.customer = customer
+        self.individual = individual
         self.db_session = db_session
     
     def get_conversation_history(self, limit: int = 10) -> str:
         """
-        Get the last N messages from the database to provide conversation context.
+        Get formatted conversation history for this individual.
         
         Args:
-            limit: Number of recent messages to retrieve (default 10)
+            limit: Number of recent messages to include
             
         Returns:
-            Formatted conversation history string
+            Markdown formatted conversation history
         """
         try:
-            # Get recent messages for this customer
-            messages = self.db_session.execute(
-                select(Message)
-                .where(Message.customer_id == self.customer.id)
-                .order_by(Message.created_at.desc())
-                .limit(limit)
-            ).scalars().all()
+            # Get individual name
+            individual_name = f"{self.individual.first_name} {self.individual.last_name}"
             
-            if not messages:
-                return "## 📋 Conversation History\n\nNo previous messages found.\n"
+            # Create WhatsApp tools instance
+            tools = WhatsAppTools(self.practice, self.individual, self.db_session)
             
-            # Format conversation history (reverse to show chronological order)
-            history_lines = ["## 📋 Recent Conversation History\n"]
+            # Get recent messages
+            messages = tools.get_recent_messages(limit)
             
-            for msg in reversed(messages):
-                # Format timestamp
-                timestamp = msg.created_at.strftime("%Y-%m-%d %H:%M")
-                
-                # Direction indicator
-                direction = "📤" if msg.direction.value == "outgoing" else "📥"
-                sender = self.practice.name if msg.direction.value == "outgoing" else self.customer.name
-                
-                # Add message to history
-                history_lines.append(f"**{timestamp}** {direction} **{sender}:** {msg.body}")
+            # Format conversation history
+            history = [
+                "## 📋 Conversation History\n",
+                f"Recent messages with {individual_name}:\n"
+            ]
             
-            history_lines.append("")  # Add empty line after history
+            for msg in messages:
+                direction = "➡️" if msg["direction"] == "outgoing" else "⬅️"
+                timestamp = msg["created_at"].split("T")[0]  # Just get the date part
+                history.append(f"{direction} **{timestamp}**: {msg['body']}\n")
             
-            return "\n".join(history_lines)
+            return "\n".join(history)
             
         except Exception as e:
             print(f"❌ Error retrieving conversation history: {str(e)}")
@@ -143,7 +137,9 @@ class MaxClientWhatsAppAgent:
         
         try:
             print(f"🚀 Starting supervisor workflow for message: {message.id}")
-            print(f"📱 From: {self.customer.name}")
+            # Get individual name
+            individual_name = f"{self.individual.first_name} {self.individual.last_name}"
+            print(f"📱 From: {individual_name}")
             print(f"💬 Message: {message.body}")
             print(f"📎 Documents: {len(documents)} attached")
             
@@ -153,16 +149,16 @@ class MaxClientWhatsAppAgent:
             # Create supervisor prompt with history
             supervisor_prompt = SUPERVISOR_PROMPT.format(
                 practice_name=self.practice.name,
-                customer_name=self.customer.name,
-                customer_phone=self.customer.primary_phone,
+                individual_name=individual_name,
+                individual_phone=self.individual.primary_mobile,
                 conversation_history=conversation_history
             )
             
             # Create and compile the supervisor with updated prompt
             supervisor_graph = create_supervisor(
                 agents=[
-                    chat_agent(self.practice, self.customer, self.db_session),
-                    document_agent(self.practice, self.customer, self.db_session)
+                    chat_agent(self.practice, self.individual, self.db_session),
+                    document_agent(self.practice, self.individual, self.db_session)
                 ],
                 model=ChatOpenAI(model="gpt-4o-mini"),
                 prompt=supervisor_prompt,
@@ -189,7 +185,7 @@ class MaxClientWhatsAppAgent:
             return {
                 "success": True,
                 "message_id": str(message.id),
-                "customer_id": str(self.customer.id),
+                "individual_id": str(self.individual.id),
                 "practice_id": str(self.practice.id)
             }
             
@@ -202,6 +198,6 @@ class MaxClientWhatsAppAgent:
                 "success": False,
                 "error": str(e),
                 "message_id": str(message.id),
-                "customer_id": str(self.customer.id),
+                "individual_id": str(self.individual.id),
                 "practice_id": str(self.practice.id)
             } 

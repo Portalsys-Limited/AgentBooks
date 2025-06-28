@@ -1,30 +1,31 @@
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, UUID4
+from typing import Optional, Dict, Any, List
 from datetime import datetime
-from uuid import UUID
 from db.models.message import MessageType, MessageDirection, MessageStatus
 
 
 # Message schemas
 class MessageBase(BaseModel):
     message_type: MessageType
-    direction: MessageDirection
     body: str
-    subject: Optional[str] = None
-    from_address: Optional[str] = None
-    to_address: Optional[str] = None
 
 
 class MessageCreate(MessageBase):
-    customer_id: UUID
-    practice_id: UUID
+    practice_id: UUID4
+    individual_id: UUID4
+    user_id: Optional[UUID4] = None
+    direction: MessageDirection
+    status: MessageStatus = MessageStatus.pending
+    from_address: str
+    to_address: str
+    twilio_sid: Optional[str] = None
+    message_metadata: Optional[Dict[str, Any]] = None
 
 
 class MessageSend(BaseModel):
-    customer_id: UUID
+    individual_id: UUID4
     message_type: MessageType
     body: str
-    subject: Optional[str] = None  # For emails
 
 
 class MessageUpdate(BaseModel):
@@ -33,34 +34,36 @@ class MessageUpdate(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-class MessageListItem(BaseModel):
-    id: UUID
-    message_type: MessageType
+class Message(MessageBase):
+    id: UUID4
+    practice_id: UUID4
+    individual_id: UUID4
+    user_id: Optional[UUID4] = None
     direction: MessageDirection
     status: MessageStatus
-    body: str
-    subject: Optional[str] = None
-    from_address: Optional[str] = None
-    to_address: Optional[str] = None
-    customer_id: UUID
+    from_address: str
+    to_address: str
+    twilio_sid: Optional[str] = None
+    error_message: Optional[str] = None
+    message_metadata: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    read_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
 
 
-class Message(MessageBase):
-    id: UUID
+class MessageListItem(BaseModel):
+    id: UUID4
+    message_type: MessageType
+    direction: MessageDirection
     status: MessageStatus
-    customer_id: UUID
-    practice_id: UUID
-    twilio_sid: Optional[str] = None
-    email_message_id: Optional[str] = None
-    message_metadata: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    body: str
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    individual_name: Optional[str] = None
+    individual_id: UUID4
     
     class Config:
         from_attributes = True
@@ -68,12 +71,12 @@ class Message(MessageBase):
 
 class MessageResponse(BaseModel):
     success: bool
-    message: str
+    message: Optional[str] = None
     data: Optional[Message] = None
 
 
 class ConversationResponse(BaseModel):
-    customer_id: UUID
-    customer_name: str
+    individual_id: UUID4
+    individual_name: str
     messages: List[MessageListItem]
     total_count: int 

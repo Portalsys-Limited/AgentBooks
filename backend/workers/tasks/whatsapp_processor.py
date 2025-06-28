@@ -1,29 +1,29 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
 import uuid
 import os
 from datetime import datetime
 
 from config.database import get_sync_session
-from db.models import Message, Customer, Practice, Document
+from db.models import Message, Individual, Practice, Document
 from agents.max_client_whatsapp.agent import MaxClientWhatsAppAgent
 from workers.celery_app import celery_app
 
 @celery_app.task(bind=True, name='process_whatsapp_message')
-def process_whatsapp_message_task(self, message_id: str, customer_id: str, practice_id: str):
+def process_whatsapp_message_task(self, message_id: str, individual_id: str, practice_id: str):
     """
     Celery task to process incoming WhatsApp messages using LangGraph agents.
     
     Args:
         message_id: UUID of the message to process
-        customer_id: UUID of the customer who sent the message
+        individual_id: UUID of the individual who sent the message
         practice_id: UUID of the practice receiving the message
     """
     try:
         # Run the sync processing function
         return _process_whatsapp_message_sync(
             message_id=message_id,
-            customer_id=customer_id, 
+            individual_id=individual_id,
             practice_id=practice_id
         )
     except Exception as e:
@@ -33,7 +33,7 @@ def process_whatsapp_message_task(self, message_id: str, customer_id: str, pract
         # Retry the task with exponential backoff
         raise self.retry(exc=e, countdown=60, max_retries=3)
 
-def _process_whatsapp_message_sync(message_id: str, customer_id: str, practice_id: str):
+def _process_whatsapp_message_sync(message_id: str, individual_id: str, practice_id: str):
     """
     Sync function to process WhatsApp messages with LangGraph agents.
     """
@@ -51,14 +51,14 @@ def _process_whatsapp_message_sync(message_id: str, customer_id: str, practice_i
             print(f"❌ Message {message_id} not found in database")
             return {"success": False, "error": "Message not found"}
         
-        # Fetch customer from database
-        customer = db.execute(
-            select(Customer).where(Customer.id == uuid.UUID(customer_id))
+        # Fetch individual from database
+        individual = db.execute(
+            select(Individual).where(Individual.id == uuid.UUID(individual_id))
         ).scalar_one_or_none()
         
-        if not customer:
-            print(f"❌ Customer {customer_id} not found in database")
-            return {"success": False, "error": "Customer not found"}
+        if not individual:
+            print(f"❌ Individual {individual_id} not found in database")
+            return {"success": False, "error": "Individual not found"}
         
         # Fetch practice from database
         practice = db.execute(
@@ -74,14 +74,14 @@ def _process_whatsapp_message_sync(message_id: str, customer_id: str, practice_i
             select(Document).where(Document.message_id == uuid.UUID(message_id))
         ).scalars().all()
         
-        print(f"📱 Processing message from {customer.name} ({customer.primary_phone})")
+        print(f"📱 Processing message from {individual.full_name} ({individual.primary_mobile})")
         print(f"📄 Found {len(documents)} documents attached to this message")
         print(f"💬 Message body: {message.body}")
         
         # Initialize the Max Client WhatsApp Agent
         agent = MaxClientWhatsAppAgent(
             practice=practice,
-            customer=customer,
+            individual=individual,
             db_session=db
         )
         
@@ -113,20 +113,20 @@ def _process_whatsapp_message_sync(message_id: str, customer_id: str, practice_i
     finally:
         db.close()
 
-def trigger_whatsapp_processing(message_id: str, customer_id: str, practice_id: str):
+def trigger_whatsapp_processing(message_id: str, individual_id: str, practice_id: str):
     """
     Helper function to trigger the Celery task for WhatsApp message processing.
     
     Args:
         message_id: UUID string of the message
-        customer_id: UUID string of the customer
+        individual_id: UUID string of the individual
         practice_id: UUID string of the practice
     """
     try:
         # Trigger the Celery task asynchronously
         task = process_whatsapp_message_task.delay(
             message_id=message_id,
-            customer_id=customer_id,
+            individual_id=individual_id,
             practice_id=practice_id
         )
         

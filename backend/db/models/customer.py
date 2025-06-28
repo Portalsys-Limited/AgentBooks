@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Date, Integer, Text, Boolean
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -12,8 +12,7 @@ class MLRStatus(str, enum.Enum):
     pending = "pending"
     in_progress = "in_progress"
     complete = "complete"
-    failed = "failed"
-    expired = "expired"
+    not_required = "not_required"
 
 # Enum for Customer Status
 class CustomerStatus(str, enum.Enum):
@@ -66,11 +65,9 @@ class Customer(Base):
     primary_accounting_contact = relationship("User", foreign_keys=[primary_accounting_contact_id])
     last_edited_by = relationship("User", foreign_keys=[last_edited_by_id])
     sa_client_relation = relationship("Client", foreign_keys=[sa_client_relation_id])
-    assigned_users = relationship("User", secondary="user_client_assignments", back_populates="assigned_clients")
     incomes = relationship("Income", back_populates="customer", cascade="all, delete-orphan")
     properties = relationship("Property", back_populates="customer", cascade="all, delete-orphan")
     client_associations = relationship("CustomerClientAssociation", back_populates="customer")
-    messages = relationship("Message", back_populates="customer")
     documents = relationship("Document", back_populates="customer")
     
     def __repr__(self):
