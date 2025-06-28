@@ -1,31 +1,49 @@
 'use client'
 
 import * as React from 'react'
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { 
   ChatBubbleLeftIcon, 
   EnvelopeIcon, 
   PhoneIcon,
   PlusIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   PaperAirplaneIcon,
-  CalendarIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  EllipsisVerticalIcon,
+  DocumentArrowUpIcon,
+  FaceFrownIcon,
+  UserCircleIcon,
+  BuildingOfficeIcon,
   BellIcon,
   SparklesIcon,
-  FunnelIcon,
-  ChatBubbleBottomCenterTextIcon,
-  BuildingOfficeIcon,
-  DocumentTextIcon,
-  BanknotesIcon,
-  ClipboardDocumentListIcon,
-  PencilIcon,
-  EyeIcon,
-  ArrowUturnLeftIcon
+  ChevronDownIcon,
+  ArrowPathIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
+import { 
+  CheckCircleIcon as CheckCircleIconSolid,
+  BellIcon as BellIconSolid 
+} from '@heroicons/react/24/solid'
+import {
+  Message,
+  MessageType,
+  MessageStatus,
+  MessageSendData,
+  CustomerWithMessages,
+  ConversationResponse
+} from '../../lib/messages'
+import {
+  sendMessage,
+  getCustomerMessages,
+  getCustomersWithMessageSummary,
+  markMessageAsRead,
+  getMessagingStats,
+  getTwilioSandboxQR
+} from '../../lib/messages/service'
 
 export default function CommunicationPage() {
   return (
@@ -35,809 +53,618 @@ export default function CommunicationPage() {
   )
 }
 
-// Enhanced mock data with separate AI and Accountant channels
-const customers = [
-  {
-    id: 1,
-    name: 'John Smith',
-    email: 'john.smith@email.com',
-    phone: '+1 (555) 123-4567',
-    status: 'active',
-    lastContact: '2024-01-15T10:30:00Z',
-    unreadCount: 3,
-    avatar: 'JS',
-    companies: ['Smith Consulting Ltd', 'JS Ventures Ltd'],
-    activeTasks: [
-      { type: 'VAT Return', dueDate: '2024-01-31', status: 'in-progress' },
-      { type: 'Annual Accounts', dueDate: '2024-02-15', status: 'pending' },
-      { type: 'CT Filing', dueDate: '2024-03-01', status: 'completed' }
-    ],
-    aiUnreadCount: 2,
-    accountantUnreadCount: 1
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    email: 'sarah.j@company.com',
-    phone: '+1 (555) 987-6543',
-    status: 'pending',
-    lastContact: '2024-01-14T15:45:00Z',
-    unreadCount: 1,
-    avatar: 'SJ',
-    companies: ['Johnson & Associates'],
-    activeTasks: [
-      { type: 'Quarterly VAT', dueDate: '2024-02-01', status: 'pending' }
-    ],
-    aiUnreadCount: 1,
-    accountantUnreadCount: 0
-  },
-  {
-    id: 3,
-    name: 'Michael Brown',
-    email: 'mbrown@business.net',
-    phone: '+1 (555) 456-7890',
-    status: 'active',
-    lastContact: '2024-01-13T09:15:00Z',
-    unreadCount: 0,
-    avatar: 'MB',
-    companies: ['Brown Enterprises', 'MB Holdings'],
-    activeTasks: [
-      { type: 'Statutory Accounts', dueDate: '2024-01-28', status: 'in-progress' },
-      { type: 'Payroll Setup', dueDate: '2024-02-10', status: 'pending' }
-    ],
-    aiUnreadCount: 0,
-    accountantUnreadCount: 0
-  }
-]
-
-// Separate AI and Accountant message channels
-const aiMessages = [
-  {
-    id: 1,
-    type: 'whatsapp',
-    sender: 'Practice AI',
-    content: '🔔 Reminder: Your VAT return for Smith Consulting Ltd is due in 7 days (31st January). I need your Q4 2023 sales and purchase invoices to complete the filing. Please upload them when ready.',
-    timestamp: '2024-01-24T09:00:00Z',
-    isIncoming: false,
-    read: true,
-    isAI: true,
-    notes: []
-  },
-  {
-    id: 2,
-    type: 'whatsapp',
-    sender: 'John Smith',
-    content: 'Thanks for the reminder! I have the invoices ready. Let me send them over.',
-    timestamp: '2024-01-24T09:15:00Z',
-    isIncoming: true,
-    read: true,
-    isAI: false,
-    notes: []
-  },
-  {
-    id: 3,
-    type: 'whatsapp',
-    sender: 'John Smith',
-    content: 'Here are my purchase invoices for Q4',
-    timestamp: '2024-01-24T09:16:00Z',
-    isIncoming: true,
-    read: true,
-    isAI: false,
-    hasAttachment: true,
-    attachmentType: 'invoices',
-    notes: []
-  },
-  {
-    id: 4,
-    type: 'whatsapp',
-    sender: 'Practice AI',
-    content: '📄 Perfect! I\'ve processed 23 purchase invoices totaling £8,456.78. I can see office supplies, utilities, and travel expenses. All look VAT compliant. Now I need your sales invoices to complete the return.',
-    timestamp: '2024-01-24T09:18:00Z',
-    isIncoming: false,
-    read: true,
-    isAI: true,
-    notes: []
-  },
-  {
-    id: 5,
-    type: 'whatsapp',
-    sender: 'Practice AI',
-    content: '💰 Payment Reminder: Your December accountancy fees (£450) are overdue. Please settle at your earliest convenience. Payment link: pay.practice.com/inv-2024-001',
-    timestamp: '2024-01-24T10:30:00Z',
-    isIncoming: false,
-    read: false,
-    isAI: true,
-    notes: []
-  },
-  {
-    id: 6,
-    type: 'whatsapp',
-    sender: 'John Smith',
-    content: 'I need to update my address for Companies House. What documents do I need?',
-    timestamp: '2024-01-24T11:00:00Z',
-    isIncoming: true,
-    read: false,
-    isAI: false,
-    notes: []
-  },
-  {
-    id: 7,
-    type: 'whatsapp',
-    sender: 'Practice AI',
-    content: '🆔 For Companies House address change, I need: 1) Photo of your driving license or passport (ID verification) 2) Proof of new address (utility bill/bank statement). Please upload these documents and I\'ll handle the filing.',
-    timestamp: '2024-01-24T11:02:00Z',
-    isIncoming: false,
-    read: false,
-    isAI: true,
-    notes: []
-  },
-  {
-    id: 8,
-    type: 'whatsapp',
-    sender: 'John Smith',
-    content: 'Here\'s my driving license',
-    timestamp: '2024-01-24T11:05:00Z',
-    isIncoming: true,
-    read: false,
-    isAI: false,
-    hasAttachment: true,
-    attachmentType: 'driving_license',
-    notes: []
-  },
-  {
-    id: 9,
-    type: 'whatsapp',
-    sender: 'Practice AI',
-    content: '🏦 Setup Reminder: You haven\'t connected your bank feed yet! This will save hours of manual data entry. Click here to connect securely: bankfeed.practice.com/setup/smith-consulting - Takes just 2 minutes!',
-    timestamp: '2024-01-24T14:00:00Z',
-    isIncoming: false,
-    read: false,
-    isAI: true,
-    hasLink: true,
-    notes: []
-  },
-  {
-    id: 10,
-    type: 'whatsapp',
-    sender: 'Practice AI',
-    content: '📋 Action Required: Your engagement letter for 2024 is ready for signature. This covers our service agreement for the year. Please review and sign: docs.practice.com/engagement/2024/smith-consulting',
-    timestamp: '2024-01-24T15:30:00Z',
-    isIncoming: false,
-    read: false,
-    isAI: true,
-    hasLink: true,
-    notes: []
-  }
-]
-
-const accountantMessages = [
-  {
-    id: 1,
-    type: 'whatsapp',
-    sender: 'John Smith',
-    content: 'Hi, can you send me a copy of my annual accounts for 2023? The bank needs them for my loan application. Thanks!',
-    timestamp: '2024-01-24T09:30:00Z',
-    isIncoming: true,
-    read: false,
-    isAI: false,
-    notes: []
-  },
-  {
-    id: 2,
-    type: 'email',
-    sender: 'Sarah (Corner Shop)',
-    content: 'Morning! Could you please send me my VAT certificate for last quarter? HMRC are asking for it and I can\'t find my copy. Also, when is my next VAT return due?',
-    timestamp: '2024-01-24T10:15:00Z',
-    isIncoming: true,
-    read: false,
-    isAI: false,
-    subject: 'VAT Certificate Request',
-    notes: []
-  },
-  {
-    id: 3,
-    type: 'whatsapp',
-    sender: 'Mike (Electrician)',
-    content: 'Hi mate, I need my P&L for 2023 to show the letting agent for my new workshop lease. Can you email it over when you get a chance?',
-    timestamp: '2024-01-24T11:45:00Z',
-    isIncoming: true,
-    read: true,
-    isAI: false,
-    notes: []
-  },
-  {
-    id: 4,
-    type: 'email',
-    sender: 'You',
-    content: 'Hi Mike, I\'ve attached your 2023 Profit & Loss statement. Good luck with the workshop lease! Let me know if you need anything else for the application.',
-    timestamp: '2024-01-24T12:00:00Z',
-    isIncoming: false,
-    read: true,
-    isAI: false,
-    subject: 'Re: P&L Statement Request',
-    notes: []
-  },
-  {
-    id: 5,
-    type: 'whatsapp',
-    sender: 'Emma (Rental Property)',
-    content: 'Quick question - do you have my rental income summary for 2023? My mortgage advisor needs to see all my property income. Cheers!',
-    timestamp: '2024-01-24T14:20:00Z',
-    isIncoming: true,
-    read: false,
-    isAI: false,
-    notes: []
-  },
-  {
-    id: 6,
-    type: 'email',
-    sender: 'David (Sole Trader)',
-    content: 'Could you send me my self-assessment calculation breakdown? I want to understand how you arrived at the £3,200 tax bill. Also need it for my records.',
-    timestamp: '2024-01-24T15:30:00Z',
-    isIncoming: true,
-    read: false,
-    isAI: false,
-    subject: 'Self Assessment Breakdown Request',
-    notes: []
-  },
-  {
-    id: 7,
-    type: 'whatsapp',
-    sender: 'Lisa (Hairdresser)',
-    content: 'Hi! I need my business certificate and accounts for insurance purposes. The salon insurance company wants to see my latest financials. When can you send them?',
-    timestamp: '2024-01-24T16:00:00Z',
-    isIncoming: true,
-    read: false,
-    isAI: false,
-    notes: []
-  },
-  {
-    id: 8,
-    type: 'email',
-    sender: 'You',
-    content: 'Hi Sarah, I\'ve attached your VAT certificate for Q4 2023. Your next VAT return is due 7th February. I\'ll send you a reminder closer to the date.',
-    timestamp: '2024-01-24T16:30:00Z',
-    isIncoming: false,
-    read: true,
-    isAI: false,
-    subject: 'Re: VAT Certificate Request',
-    notes: []
-  }
-]
-
 function CommunicationContent() {
-  const [selectedCustomer, setSelectedCustomer] = useState(customers[0])
-  const [searchTerm, setSearchTerm] = useState('')
+  // State management
+  const [customers, setCustomers] = useState<CustomerWithMessages[]>([])
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithMessages | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
-  const [messageType, setMessageType] = useState('whatsapp')
-  const [showTaskForm, setShowTaskForm] = useState(false)
-  const [newTask, setNewTask] = useState('')
-  const [messageFilter, setMessageFilter] = useState('all')
-  const [showingNotes, setShowingNotes] = useState<number | null>(null)
-  const [newNote, setNewNote] = useState('')
-  const [replyingTo, setReplyingTo] = useState<number | null>(null)
-  const [activeChannel, setActiveChannel] = useState<'ai' | 'accountant'>('ai')
+  const [messageType, setMessageType] = useState<MessageType>(MessageType.WHATSAPP)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showTwilioSetup, setShowTwilioSetup] = useState(false)
+  const [stats, setStats] = useState<any>(null)
+  
+  // Refs
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Load initial data
+  useEffect(() => {
+    loadCustomers()
+    loadStats()
+  }, [])
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  // Focus input when customer is selected
+  useEffect(() => {
+    if (selectedCustomer && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [selectedCustomer])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const loadCustomers = async () => {
+    try {
+      setLoading(true)
+      const customersData = await getCustomersWithMessageSummary()
+      setCustomers(customersData)
+      if (customersData.length > 0 && !selectedCustomer) {
+        setSelectedCustomer(customersData[0])
+        loadMessages(customersData[0].id)
+      }
+    } catch (err) {
+      setError('Failed to load customers')
+      console.error('Error loading customers:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadMessages = async (customerId: string) => {
+    try {
+      const conversation = await getCustomerMessages(customerId)
+      setMessages(conversation.messages)
+      
+      // Mark unread messages as read
+      const unreadMessages = conversation.messages.filter(
+        msg => msg.is_incoming && !msg.read_at
+      )
+      for (const msg of unreadMessages) {
+        try {
+          await markMessageAsRead(msg.id)
+        } catch (err) {
+          console.error('Error marking message as read:', err)
+        }
+      }
+    } catch (err) {
+      setError('Failed to load messages')
+      console.error('Error loading messages:', err)
+    }
+  }
+
+  const loadStats = async () => {
+    try {
+      const statsData = await getMessagingStats()
+      setStats(statsData)
+    } catch (err) {
+      console.error('Error loading stats:', err)
+    }
+  }
+
+  const handleCustomerSelect = (customer: CustomerWithMessages) => {
+    setSelectedCustomer(customer)
+    loadMessages(customer.id)
+    setError(null)
+  }
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedCustomer || sendingMessage) return
+
+    const messageData: MessageSendData = {
+      customer_id: selectedCustomer.id,
+      message_type: messageType,
+      content: newMessage.trim(),
+      phone_number: messageType === MessageType.WHATSAPP ? selectedCustomer.phone : undefined,
+      email_address: messageType === MessageType.EMAIL ? selectedCustomer.email : undefined
+    }
+
+    try {
+      setSendingMessage(true)
+      setError(null)
+      
+      const response = await sendMessage(messageData)
+      
+      if (response.success && response.data) {
+        // Add the new message to the current conversation
+        setMessages(prev => [...prev, response.data!])
+        setNewMessage('')
+        
+        // Update customer's last contact time
+        setCustomers(prev => 
+          prev.map(c => 
+            c.id === selectedCustomer.id 
+              ? { ...c, last_contact: new Date().toISOString() }
+              : c
+          )
+        )
+      } else {
+        setError(response.message || 'Failed to send message')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to send message')
+      console.error('Error sending message:', err)
+    } finally {
+      setSendingMessage(false)
+      inputRef.current?.focus()
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    
+    if (days === 0) {
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
+    } else if (days === 1) {
+      return 'Yesterday'
+    } else if (days < 7) {
+      return date.toLocaleDateString('en-US', { weekday: 'short' })
+    } else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      })
+    }
+  }
+
+  const getStatusIcon = (status: MessageStatus) => {
+    switch (status) {
+      case MessageStatus.SENT:
+        return <CheckCircleIcon className="h-4 w-4 text-gray-400" />
+      case MessageStatus.DELIVERED:
+        return <CheckCircleIconSolid className="h-4 w-4 text-gray-500" />
+      case MessageStatus.READ:
+        return <CheckCircleIconSolid className="h-4 w-4 text-blue-500" />
+      case MessageStatus.FAILED:
+        return <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+      default:
+        return <ClockIcon className="h-4 w-4 text-gray-400" />
+    }
+  }
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  // Get messages based on active channel
-  const currentMessages = activeChannel === 'ai' ? aiMessages : accountantMessages
-  
-  const filteredMessages = currentMessages.filter(message => {
-    if (messageFilter === 'all') return true
-    if (messageFilter === 'unread') return !message.read && message.isIncoming
-    if (messageFilter === 'ai') return message.isAI
-    if (messageFilter === 'human') return !message.isAI
-    if (messageFilter === 'email') return message.type === 'email'
-    if (messageFilter === 'whatsapp') return message.type === 'whatsapp'
-    return true
-  })
-
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })
-  }
-
-  const getMessageIcon = (type: string) => {
-    return type === 'email' ? EnvelopeIcon : ChatBubbleLeftIcon
-  }
-
-  const getTaskIcon = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'vat return':
-      case 'quarterly vat':
-        return BanknotesIcon
-      case 'annual accounts':
-      case 'statutory accounts':
-        return DocumentTextIcon
-      case 'ct filing':
-        return ClipboardDocumentListIcon
-      default:
-        return CheckCircleIcon
-    }
-  }
-
-  const getTaskStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800'
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-800'
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const addNote = (messageId: number) => {
-    if (newNote.trim()) {
-      // In a real app, this would update the backend
-      console.log(`Adding note to message ${messageId}: ${newNote}`)
-      setNewNote('')
-      setShowingNotes(null)
-    }
-  }
-
-  const getChannelSummary = () => {
-    if (activeChannel === 'ai') {
-      return {
-        title: 'AI Communication Summary',
-        description: `${selectedCustomer.name} has been using AI for basic queries, document processing, and VAT guidance. Recent activity includes receipt analysis and deadline reminders.`,
-        stats: `${selectedCustomer.aiUnreadCount} unread AI messages`
-      }
-    } else {
-      return {
-        title: 'Accountant Communication Summary', 
-        description: `Professional consultation with ${selectedCustomer.name} on complex matters requiring expert advice. Currently handling HMRC correspondence and scheduling consultations.`,
-        stats: `${selectedCustomer.accountantUnreadCount} unread accountant messages`
-      }
-    }
-  }
-
-  const channelSummary = getChannelSummary()
-
-  return (
-    <div className="h-full flex">
-      {/* AI Summary Header - moved above customer list */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-b border-gray-200 p-3">
-          <div className="flex items-start space-x-3">
-            <SparklesIcon className="h-5 w-5 text-purple-600 mt-1" />
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-gray-900 mb-1">{channelSummary.title}</h3>
-              <p className="text-xs text-gray-700">
-                {channelSummary.description}
-              </p>
-              <p className="text-xs text-purple-600 font-medium mt-1">
-                {channelSummary.stats}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Customer List Sidebar */}
-        <div className="p-3 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Customers</h2>
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search clients or customers..."
-              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto">
-          {filteredCustomers.map((customer) => (
-            <div
-              key={customer.id}
-              className={`p-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
-                selectedCustomer.id === customer.id ? 'bg-blue-50 border-blue-200' : ''
-              }`}
-              onClick={() => setSelectedCustomer(customer)}
-            >
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium text-xs">
-                  {customer.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900 truncate">{customer.name}</p>
-                    <div className="flex items-center space-x-1">
-                      {customer.aiUnreadCount > 0 && (
-                        <span className="bg-purple-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1" title="AI Messages">
-                          🤖 {customer.aiUnreadCount}
-                        </span>
-                      )}
-                      {customer.accountantUnreadCount > 0 && (
-                        <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1" title="Accountant Messages">
-                          👤 {customer.accountantUnreadCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 truncate">{customer.email}</p>
-                  <div className="flex items-center space-x-1 mt-1">
-                    <BuildingOfficeIcon className="h-3 w-3 text-gray-400" />
-                    <p className="text-xs text-gray-400 truncate">
-                      {customer.companies.length} companies
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                      customer.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {customer.status}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {formatTime(customer.lastContact)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading conversations...</p>
         </div>
       </div>
+    )
+  }
 
-      {/* Main Communication Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Channel Selector */}
-        <div className="bg-white border-b border-gray-200 p-3">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setActiveChannel('ai')}
-                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                  activeChannel === 'ai'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                🤖 AI Chat ({selectedCustomer.aiUnreadCount})
-              </button>
-              <button
-                onClick={() => setActiveChannel('accountant')}
-                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                  activeChannel === 'accountant'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                👤 Accountant ({selectedCustomer.accountantUnreadCount})
-              </button>
-            </div>
-            
-            <div className="text-xs text-gray-500">
-              {activeChannel === 'ai' ? 'WhatsApp: +44 7123 456789 (AI)' : 'WhatsApp: +44 7123 456788 (Direct)'}
-            </div>
-          </div>
-        </div>
-
-        {/* Customer Header with Companies and Tasks */}
-        <div className="bg-white border-b border-gray-200 p-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
-                {selectedCustomer.avatar}
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">{selectedCustomer.name}</h1>
-                <div className="flex items-center space-x-3 text-xs text-gray-500 mb-2">
-                  <span className="flex items-center">
-                    <EnvelopeIcon className="h-3 w-3 mr-1" />
-                    {selectedCustomer.email}
-                  </span>
-                  <span className="flex items-center">
-                    <PhoneIcon className="h-3 w-3 mr-1" />
-                    {selectedCustomer.phone}
-                  </span>
-                </div>
-                
-                {/* Companies */}
-                <div className="mb-2">
-                  <h4 className="text-xs font-medium text-gray-700 mb-1">Companies:</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedCustomer.companies.map((company, index) => (
-                      <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-                        <BuildingOfficeIcon className="h-3 w-3 mr-1" />
-                        {company}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
+  return (
+    <div className="h-full flex bg-gray-50">
+      {/* Sidebar - Customer List */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setShowTaskForm(!showTaskForm)}
-                className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                onClick={() => setShowTwilioSetup(!showTwilioSetup)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                title="Setup Twilio"
               >
-                <PlusIcon className="h-3 w-3 mr-1" />
-                Task
+                <SparklesIcon className="h-5 w-5" />
               </button>
-              <button className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                <CalendarIcon className="h-3 w-3 mr-1" />
-                Schedule
+              <button
+                onClick={loadCustomers}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                title="Refresh"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
               </button>
             </div>
           </div>
           
-          {/* Active Tasks Widgets */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {selectedCustomer.activeTasks.map((task, index) => {
-              const TaskIcon = getTaskIcon(task.type)
-              return (
-                <div key={index} className="bg-gray-50 rounded-md p-2">
-                  <div className="flex items-center space-x-2">
-                    <TaskIcon className="h-4 w-4 text-gray-600" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-900 truncate">{task.type}</p>
-                      <p className="text-xs text-gray-500">Due: {new Date(task.dueDate).toLocaleDateString()}</p>
+          {/* Search */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search customers..."
+              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Stats */}
+          {stats && (
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-blue-50 p-2 rounded">
+                <p className="text-blue-600 font-medium">{stats.total_messages}</p>
+                <p className="text-blue-500">Total Messages</p>
+              </div>
+              <div className="bg-green-50 p-2 rounded">
+                <p className="text-green-600 font-medium">{stats.weekly_messages}</p>
+                <p className="text-green-500">This Week</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Customer List */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredCustomers.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              <UserCircleIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+              <p>No customers found</p>
+            </div>
+          ) : (
+            filteredCustomers.map((customer) => (
+              <div
+                key={customer.id}
+                className={`p-4 cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border-blue-200' : ''
+                }`}
+                onClick={() => handleCustomerSelect(customer)}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                      {customer.avatar || customer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                     </div>
-                    <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
-                      {task.status}
-                    </span>
+                    {customer.unread_count > 0 && (
+                      <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {customer.unread_count}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {customer.name}
+                      </p>
+                      {customer.last_contact && (
+                        <span className="text-xs text-gray-500">
+                          {formatTime(customer.last_contact)}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 mt-1">
+                      {customer.phone && (
+                        <PhoneIcon className="h-3 w-3 text-gray-400" />
+                      )}
+                      {customer.email && (
+                        <EnvelopeIcon className="h-3 w-3 text-gray-400" />
+                      )}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        customer.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {customer.status}
+                      </span>
+                    </div>
+                    
+                    {customer.total_messages > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {customer.total_messages} messages
+                      </p>
+                    )}
                   </div>
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            ))
+          )}
         </div>
+      </div>
 
-        {/* Message Filters */}
-        <div className="bg-white border-b border-gray-200 px-3 py-2">
-          <div className="flex items-center space-x-2">
-            <FunnelIcon className="h-4 w-4 text-gray-500" />
-            <select
-              value={messageFilter}
-              onChange={(e) => setMessageFilter(e.target.value)}
-              className="text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Messages</option>
-              <option value="unread">Unread</option>
-              <option value="ai">AI Responses</option>
-              <option value="human">Human Responses</option>
-              <option value="email">Emails Only</option>
-              <option value="whatsapp">WhatsApp Only</option>
-            </select>
-            <span className="text-xs text-gray-500">
-              {filteredMessages.length} messages
-            </span>
-          </div>
-        </div>
-
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50">
-          {filteredMessages.map((message) => {
-            const MessageIcon = getMessageIcon(message.type)
-            return (
-              <div key={message.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="p-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <MessageIcon className="h-4 w-4 text-gray-400" />
-                      <span className={`text-xs font-medium ${message.isAI ? 'text-purple-600' : 'text-gray-900'}`}>
-                        {message.isAI ? `🤖 ${message.sender}` : message.sender}
-                      </span>
-                      <span className="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                        message.type === 'email' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                      }`}>
-                        {message.type}
-                      </span>
-                      {!message.read && message.isIncoming && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Unread
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {selectedCustomer ? (
+          <>
+            {/* Chat Header */}
+            <div className="bg-white border-b border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                    {selectedCustomer.avatar || selectedCustomer.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {selectedCustomer.name}
+                    </h2>
+                    <div className="flex items-center space-x-3 text-sm text-gray-500">
+                      {selectedCustomer.phone && (
+                        <span className="flex items-center">
+                          <PhoneIcon className="h-4 w-4 mr-1" />
+                          {selectedCustomer.phone}
                         </span>
                       )}
-                      {activeChannel === 'ai' && 'hasAttachment' in message && message.hasAttachment && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          📎 {message.attachmentType}
+                      {selectedCustomer.email && (
+                        <span className="flex items-center">
+                          <EnvelopeIcon className="h-4 w-4 mr-1" />
+                          {selectedCustomer.email}
                         </span>
                       )}
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => setReplyingTo(replyingTo === message.id ? null : message.id)}
-                        className="p-1 text-gray-400 hover:text-gray-600"
-                        title="Reply"
-                      >
-                        <ArrowUturnLeftIcon className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => setShowingNotes(showingNotes === message.id ? null : message.id)}
-                        className="p-1 text-gray-400 hover:text-gray-600"
-                        title="Add Note"
-                      >
-                        <PencilIcon className="h-3 w-3" />
-                      </button>
                     </div>
                   </div>
-                  
-                  {message.type === 'email' && 'subject' in message && (
-                    <p className="text-xs font-medium text-gray-700 mb-1">Subject: {message.subject}</p>
-                  )}
-                  
-                  <p className="text-sm text-gray-700 mb-2">{message.content}</p>
-                  
-                  {/* Show attachment preview for AI channel */}
-                  {activeChannel === 'ai' && 'hasAttachment' in message && message.hasAttachment && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
-                      <div className="flex items-center space-x-2">
-                        <DocumentTextIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-xs text-gray-600">
-                          Attachment: {message.attachmentType === 'invoices' && 'Purchase Invoices (23 files)'}
-                          {message.attachmentType === 'driving_license' && 'Driving License (ID Verification)'}
-                          {message.attachmentType === 'passport' && 'Passport (ID Verification)'}
-                          {message.attachmentType === 'receipts' && 'Receipts (Multiple files)'}
-                          {message.attachmentType === 'bank_statement' && 'Bank Statement (Address Proof)'}
-                          {message.attachmentType === 'utility_bill' && 'Utility Bill (Address Proof)'}
-                          {message.attachmentType === 'document' && 'Document'}
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={messageType}
+                    onChange={(e) => setMessageType(e.target.value as MessageType)}
+                    className="text-sm border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value={MessageType.WHATSAPP}>WhatsApp</option>
+                    <option value={MessageType.EMAIL}>Email</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <ChatBubbleLeftIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-2">No messages yet</p>
+                    <p className="text-sm text-gray-400">
+                      Send a message to start the conversation
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.is_incoming ? 'justify-start' : 'justify-end'}`}
+                  >
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        message.is_incoming
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'bg-blue-600 text-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <p className="text-sm whitespace-pre-wrap break-words">
+                          {message.content}
+                        </p>
+                        {message.message_type === MessageType.WHATSAPP && (
+                          <ChatBubbleLeftIcon className="h-3 w-3 ml-2 mt-1 flex-shrink-0 opacity-50" />
+                        )}
+                        {message.message_type === MessageType.EMAIL && (
+                          <EnvelopeIcon className="h-3 w-3 ml-2 mt-1 flex-shrink-0 opacity-50" />
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-2">
+                        <span className={`text-xs ${
+                          message.is_incoming ? 'text-gray-500' : 'text-blue-100'
+                        }`}>
+                          {formatTime(message.created_at!)}
                         </span>
-                        <button className="text-xs text-blue-600 hover:underline">View</button>
-                        {(message.attachmentType === 'invoices' || message.attachmentType === 'receipts') && (
-                          <button className="text-xs text-green-600 hover:underline">✓ Processed</button>
+                        
+                        {!message.is_incoming && (
+                          <div className="ml-2">
+                            {getStatusIcon(message.status)}
+                          </div>
                         )}
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Show link preview for AI messages with links */}
-                  {activeChannel === 'ai' && 'hasLink' in message && message.hasLink && (
-                    <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-blue-700 font-medium">🔗 Quick Action Available</span>
-                        <button className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-                          Open Link
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {message.notes && message.notes.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {message.notes.map((note, index) => (
-                        <div key={index} className="text-xs bg-yellow-50 text-yellow-800 p-2 rounded border-l-2 border-yellow-300">
-                          📝 {note}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Add Note Form */}
-                  {showingNotes === message.id && (
-                    <div className="mt-2 flex items-center space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Add a note..."
-                        className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                        value={newNote}
-                        onChange={(e) => setNewNote(e.target.value)}
-                      />
-                      <button
-                        onClick={() => addNote(message.id)}
-                        className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  )}
-                  
-                  {/* Reply Form */}
-                  {replyingTo === message.id && (
-                    <div className="mt-2 bg-gray-50 p-2 rounded">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <select className="text-xs border border-gray-300 rounded px-2 py-1">
-                          {activeChannel === 'ai' ? (
-                            <option value="whatsapp">WhatsApp (AI)</option>
-                          ) : (
-                            <>
-                              <option value="whatsapp">WhatsApp</option>
-                              <option value="email">Email</option>
-                            </>
-                          )}
-                        </select>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          placeholder={activeChannel === 'ai' ? 'Forward to AI or reply directly...' : 'Type your reply...'}
-                          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                        />
-                        <button className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                          {activeChannel === 'ai' ? 'Forward' : 'Reply'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="mx-4 mb-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
+                  <p className="text-sm text-red-700">{error}</p>
+                  <button
+                    onClick={() => setError(null)}
+                    className="ml-auto text-red-500 hover:text-red-700"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-            )
-          })}
-        </div>
+            )}
 
-        {/* Channel-specific action bar */}
-
-        {/* Quick Task Form */}
-        {showTaskForm && (
-          <div className="bg-yellow-50 border-t border-yellow-200 p-3">
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                placeholder="Create a new task..."
-                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-              />
-              <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                Add Task
-              </button>
-              <button 
-                onClick={() => setShowTaskForm(false)}
-                className="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+            {/* Message Input */}
+            <div className="bg-white border-t border-gray-200 p-4">
+              <div className="flex items-end space-x-3">
+                <div className="flex-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder={`Send a ${messageType === MessageType.WHATSAPP ? 'WhatsApp' : 'email'} message...`}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={sendingMessage}
+                  />
+                </div>
+                
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sendingMessage}
+                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {sendingMessage ? (
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <PaperAirplaneIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <ChatBubbleLeftIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Select a customer
+              </h3>
+              <p className="text-gray-500">
+                Choose a customer from the sidebar to start messaging
+              </p>
             </div>
           </div>
         )}
+      </div>
 
-        {/* Message Input */}
-        <div className="bg-white border-t border-gray-200 p-3">
-          <div className="flex items-center space-x-2">
-            <select
-              value={messageType}
-              onChange={(e) => setMessageType(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-            >
-              {activeChannel === 'ai' ? (
-                <option value="whatsapp">WhatsApp (AI)</option>
-              ) : (
-                <>
-                  <option value="whatsapp">WhatsApp</option>
-                  <option value="email">Email</option>
-                </>
-              )}
-            </select>
-            <input
-              type="text"
-              placeholder={
-                activeChannel === 'ai' 
-                  ? 'Send to AI assistant...' 
-                  : `Send a ${messageType} message...`
-              }
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-            />
-            {activeChannel === 'ai' && (
-              <button className="inline-flex items-center px-2 py-2 bg-orange-600 text-white text-sm rounded hover:bg-orange-700">
-                📎
-              </button>
-            )}
-            <button className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-              <PaperAirplaneIcon className="h-4 w-4 mr-1" />
-              Send
-            </button>
-          </div>
+      {/* Twilio Setup Modal */}
+      {showTwilioSetup && (
+        <TwilioSetupModal onClose={() => setShowTwilioSetup(false)} />
+      )}
+    </div>
+  )
+}
+
+// Twilio Setup Modal Component
+function TwilioSetupModal({ onClose }: { onClose: () => void }) {
+  const [qrData, setQrData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadQrCode()
+  }, [])
+
+  const loadQrCode = async () => {
+    try {
+      const response = await getTwilioSandboxQR()
+      setQrData(response)
+    } catch (err) {
+      console.error('Error loading QR code:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">WhatsApp Setup</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <XMarkIcon className="h-6 w-6" />
+          </button>
         </div>
+        
+        {loading ? (
+          <div className="text-center py-8">
+            <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p>Loading setup information...</p>
+          </div>
+        ) : qrData?.success ? (
+          <div className="text-center">
+            {qrData.data?.qr_image_url && (
+              <img
+                src={qrData.data.qr_image_url}
+                alt="WhatsApp QR Code"
+                className="mx-auto mb-4 border rounded"
+              />
+            )}
+            <p className="text-sm text-gray-600 mb-2">
+              {qrData.data?.instructions || 'Scan this QR code with WhatsApp to connect to the sandbox'}
+            </p>
+            {qrData.data?.sandbox_number && (
+              <p className="text-xs text-gray-500">
+                Sandbox: {qrData.data.sandbox_number}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-sm text-red-600">
+              {qrData?.error || 'Unable to load WhatsApp setup'}
+            </p>
+            {qrData?.suggestion && (
+              <p className="text-xs text-gray-500 mt-2">
+                {qrData.suggestion}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
-} 
+}
+
+/*
+ * SUGGESTED BACKEND ROUTES FOR ENHANCED FUNCTIONALITY:
+ * =====================================================
+ * 
+ * 1. GET /messages/customers-with-summary
+ *    - Returns customers with message counts, last contact, unread counts
+ *    - Would replace the current getCustomersWithMessageSummary implementation
+ * 
+ * 2. GET /messages/recent?limit=20
+ *    - Returns recent messages across all customers for dashboard overview
+ * 
+ * 3. GET /messages/search?q=query&customer_id=id&type=whatsapp
+ *    - Full-text search across message content
+ * 
+ * 4. POST /messages/bulk-read/{customer_id}
+ *    - Mark all messages for a customer as read
+ * 
+ * 5. GET /messages/thread/{message_id}?context=10
+ *    - Get message with surrounding context messages
+ * 
+ * 6. GET /messages/analytics?start_date=2024-01-01&end_date=2024-01-31
+ *    - Message analytics: response times, volume, top customers
+ * 
+ * 7. POST /messages/webhook/status-update
+ *    - Enhanced webhook for delivery status updates
+ * 
+ * 8. GET /messages/templates
+ *    - Pre-defined message templates for common responses
+ * 
+ * 9. POST /messages/schedule
+ *    - Schedule messages to be sent later
+ * 
+ * 10. GET /messages/attachments/{message_id}
+ *     - Handle file attachments in messages
+ * 
+ * 11. POST /messages/auto-response/rules
+ *     - Configure automatic responses based on keywords/conditions
+ * 
+ * 12. GET /messages/export?customer_id=id&format=pdf
+ *     - Export message history for compliance/records
+ * 
+ * 13. WebSocket endpoint for real-time message updates
+ *     - Live updates when new messages arrive
+ * 
+ * 14. GET /messages/customer/{customer_id}/summary
+ *     - Detailed conversation summary and AI insights
+ * 
+ * 15. POST /messages/ai/suggestions
+ *     - AI-powered reply suggestions based on context
+ */ 

@@ -198,16 +198,41 @@ export default function NewClient({ onCancel }: NewClientProps) {
     setError(null)
     
     try {
-      // Prepare data for API call
-      const createData: CreateClientData = {
-        name: client.business_name || client.name || '',
-        trading_name: client.trading_name,
-        business_type: client.business_type,
-        email: client.main_email || client.email,
-        phone: client.main_phone || client.phone,
+      // Prepare data for API call - match backend schema exactly
+      const createData = {
+        // Required fields
+        business_name: client.business_name || client.name || '',
+        business_type: client.business_type || 'ltd',  // Use enum value from backend
+        
+        // Contact information
+        main_email: client.main_email || client.email || null,
+        main_phone: client.main_phone || client.phone || null,
+        
+        // Registered address
+        registered_address_line1: client.registered_address?.line_1 || client.address_line1 || null,
+        registered_address_line2: client.registered_address?.line_2 || client.address_line2 || null,
+        registered_city: client.registered_address?.city || client.city || null,
+        registered_county: client.registered_address?.county || client.state || null,
+        registered_postcode: client.registered_address?.postcode || client.postal_code || null,
+        registered_country: client.registered_address?.country || client.country || 'United Kingdom',
+        
+        // Optional fields
+        trading_name: client.trading_name || null,
+        companies_house_number: client.companies_house_number || null,
+        nature_of_business: client.nature_of_business || null,
+        industry_sector: client.sic_code || null,
       }
 
-      const newClient = await createClient(createData)
+      // Log the data being sent
+      console.log('Creating client with data:', createData);
+      
+      // Create client with Companies House auto-fill if we have a number
+      const newClient = await createClient(
+        createData,
+        !!client.companies_house_number // Enable auto-fill if we have a CH number
+      )
+      
+      console.log('Client created successfully:', newClient)
       
       // Navigate to the new client detail page
       router.push(`/clients/${newClient.id}`)
