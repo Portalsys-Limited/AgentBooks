@@ -7,7 +7,7 @@ from langchain.tools import StructuredTool
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 from db.models import Individual, Practice, Message, Document
-from db.models.message import MessageDirection, MessageStatus, MessageType
+from db.models.message import MessageDirection, MessageStatus, MessageType, MessageSender
 
 class SendMessageInput(BaseModel):
     """Input for sending WhatsApp messages."""
@@ -72,6 +72,7 @@ class WhatsAppTools:
                     message_type=MessageType.whatsapp,
                     direction=MessageDirection.outgoing,
                     status=MessageStatus.sent,
+                    sender=MessageSender.ai,
                     individual_id=self.individual.id,
                     practice_id=self.practice.id,
                     twilio_sid=twilio_message.sid,
