@@ -1,125 +1,115 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+from typing import Optional, List
 from datetime import date, datetime
 from uuid import UUID
 
-from db.models.customer import Gender, MaritalStatus
+from db.models.customer import MLRStatus, CustomerStatus
+from db.schemas.individuals import IndividualCreateRequest
+
+# Import related schemas for nested responses
+from db.schemas.income import IncomeResponse
+from db.schemas.property import PropertyResponse
+from db.schemas.customer_client_association import CustomerClientAssociationWithClient
 
 
-# Address schemas for customer addresses
-class CustomerAddress(BaseModel):
-    line1: Optional[str] = None
-    line2: Optional[str] = None
-    city: Optional[str] = None
-    county: Optional[str] = None
-    postcode: Optional[str] = None
-    country: Optional[str] = "United Kingdom"
+# User summary for relationships
+class UserSummary(BaseModel):
+    id: UUID
+    email: str
+    
+    class Config:
+        from_attributes = True
 
 
-# Personal information schemas
-class PersonalInfo(BaseModel):
-    title: Optional[str] = None
+# Individual summary for customer responses
+class IndividualSummary(BaseModel):
+    id: UUID
     first_name: str
-    middle_name: Optional[str] = None
     last_name: str
-    surname: Optional[str] = None
-    preferred_name: Optional[str] = None
+    full_name: str
+    email: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 
-class ContactInfo(BaseModel):
-    primary_email: EmailStr
-    secondary_email: Optional[EmailStr] = None
-    primary_phone: Optional[str] = None
-    secondary_phone: Optional[str] = None
+# Client summary for SA client relation
+class ClientSummary(BaseModel):
+    id: UUID
+    business_name: str
+    trading_name: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 
-class PersonalDetails(BaseModel):
-    date_of_birth: Optional[date] = None
-    gender: Optional[Gender] = None
-    marital_status: Optional[MaritalStatus] = None
-    nationality: Optional[str] = None
+# Practice info for customer
+class PracticeInfo(BaseModel):
+    primary_accounting_contact_id: Optional[UUID] = None
+    acting_from: Optional[date] = None
 
 
-class GovernmentIdentifiers(BaseModel):
-    national_insurance_number: Optional[str] = None
-    utr: Optional[str] = None
+# MLR info for customer
+class MLRInfo(BaseModel):
+    status: Optional[MLRStatus] = MLRStatus.pending
+    date_complete: Optional[date] = None
     passport_number: Optional[str] = None
-    driving_license_number: Optional[str] = None
+    driving_license: Optional[str] = None
+    uk_home_telephone: Optional[str] = None
 
 
-class EmergencyContact(BaseModel):
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    relationship: Optional[str] = None
-
-
-class FamilyInfo(BaseModel):
-    number_of_children: Optional[int] = 0
-    children_details: Optional[Dict[str, Any]] = None
-    emergency_contact: Optional[EmergencyContact] = None
-
-
-class EmploymentInfo(BaseModel):
-    status: Optional[str] = None
-    employer_name: Optional[str] = None
-    job_title: Optional[str] = None
-    annual_income: Optional[str] = None
-
-
-class CustomerBankingInfo(BaseModel):
-    bank_name: Optional[str] = None
-    bank_sort_code: Optional[str] = None
-    bank_account_number: Optional[str] = None
-    bank_account_name: Optional[str] = None
-
-
-# Customer creation request schema
+# Customer creation request - supports both new individual or existing
 class CustomerCreateRequest(BaseModel):
-    name: str
-    personal_info: PersonalInfo
-    contact_info: ContactInfo
-    home_address: Optional[CustomerAddress] = None
-    correspondence_same_as_home: Optional[bool] = True
-    correspondence_address: Optional[CustomerAddress] = None
-    personal_details: Optional[PersonalDetails] = None
-    government_identifiers: Optional[GovernmentIdentifiers] = None
-    family_info: Optional[FamilyInfo] = None
-    employment: Optional[EmploymentInfo] = None
-    banking: Optional[CustomerBankingInfo] = None
+    # Individual - either create new or use existing
+    individual_id: Optional[UUID] = None  # Use existing individual
+    individual_data: Optional[IndividualCreateRequest] = None  # Create new individual
+    
+    # Basic customer info
+    ni_number: Optional[str] = None
+    personal_utr_number: Optional[str] = None
+    status: Optional[CustomerStatus] = CustomerStatus.active
+    do_they_own_sa: Optional[bool] = False
+    sa_client_relation_id: Optional[UUID] = None
+    
+    # Practice info
+    practice_info: Optional[PracticeInfo] = None
+    
+    # MLR info
+    mlr_info: Optional[MLRInfo] = None
+    
+    # Additional info
+    comments: Optional[str] = None
     notes: Optional[str] = None
-    communication_preferences: Optional[Dict[str, Any]] = None
-    data_protection_consent: Optional[bool] = False
-    marketing_consent: Optional[bool] = False
 
 
-# Customer update request schema  
+# Customer update request
 class CustomerUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    personal_info: Optional[PersonalInfo] = None
-    contact_info: Optional[ContactInfo] = None
-    home_address: Optional[CustomerAddress] = None
-    correspondence_same_as_home: Optional[bool] = None
-    correspondence_address: Optional[CustomerAddress] = None
-    personal_details: Optional[PersonalDetails] = None
-    government_identifiers: Optional[GovernmentIdentifiers] = None
-    family_info: Optional[FamilyInfo] = None
-    employment: Optional[EmploymentInfo] = None
-    banking: Optional[CustomerBankingInfo] = None
+    # Basic customer info
+    ni_number: Optional[str] = None
+    personal_utr_number: Optional[str] = None
+    status: Optional[CustomerStatus] = None
+    do_they_own_sa: Optional[bool] = None
+    sa_client_relation_id: Optional[UUID] = None
+    
+    # Practice info
+    practice_info: Optional[PracticeInfo] = None
+    
+    # MLR info
+    mlr_info: Optional[MLRInfo] = None
+    
+    # Additional info
+    comments: Optional[str] = None
     notes: Optional[str] = None
-    communication_preferences: Optional[Dict[str, Any]] = None
-    data_protection_consent: Optional[bool] = None
-    marketing_consent: Optional[bool] = None
 
 
 # Customer list item (summary view)
 class CustomerListItem(BaseModel):
     id: UUID
-    name: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    primary_email: Optional[str] = None
-    primary_phone: Optional[str] = None
-    practice_id: UUID
+    individual: IndividualSummary
+    status: CustomerStatus
+    ni_number: Optional[str] = None
+    personal_utr_number: Optional[str] = None
+    mlr_status: MLRStatus
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -127,101 +117,60 @@ class CustomerListItem(BaseModel):
         from_attributes = True
 
 
-# Import client association schemas for nested responses
-# Note: Imported here to avoid circular imports
-from db.schemas.customer_client_association import CustomerClientAssociationWithClient
-
-
-# Full customer response schema (flat structure matching DB)
+# Full customer response with all related data
 class CustomerResponse(BaseModel):
     id: UUID
     practice_id: UUID
     
+    # Individual relationship
+    individual_id: UUID
+    individual: IndividualSummary
+    
     # Basic info
-    name: str
+    ni_number: Optional[str] = None
+    personal_utr_number: Optional[str] = None
+    status: CustomerStatus
+    do_they_own_sa: bool
+    sa_client_relation_id: Optional[UUID] = None
+    sa_client_relation: Optional[ClientSummary] = None
     
-    # Personal information (flat structure matching DB)
-    title: Optional[str] = None
-    first_name: Optional[str] = None
-    middle_name: Optional[str] = None
-    last_name: Optional[str] = None
-    surname: Optional[str] = None
-    preferred_name: Optional[str] = None
+    # Practice info
+    primary_accounting_contact_id: Optional[UUID] = None
+    primary_accounting_contact: Optional[UserSummary] = None
+    acting_from: Optional[date] = None
     
-    # Contact information
-    primary_email: Optional[str] = None
-    secondary_email: Optional[str] = None
-    primary_phone: Optional[str] = None
-    secondary_phone: Optional[str] = None
-    
-    # Home address
-    home_address_line1: Optional[str] = None
-    home_address_line2: Optional[str] = None
-    home_city: Optional[str] = None
-    home_county: Optional[str] = None
-    home_postcode: Optional[str] = None
-    home_country: Optional[str] = None
-    
-    # Correspondence address
-    correspondence_same_as_home: Optional[bool] = None
-    correspondence_address_line1: Optional[str] = None
-    correspondence_address_line2: Optional[str] = None
-    correspondence_city: Optional[str] = None
-    correspondence_county: Optional[str] = None
-    correspondence_postcode: Optional[str] = None
-    correspondence_country: Optional[str] = None
-    
-    # Personal details
-    date_of_birth: Optional[date] = None
-    gender: Optional[Gender] = None
-    marital_status: Optional[MaritalStatus] = None
-    nationality: Optional[str] = None
-    
-    # Government identifiers
-    national_insurance_number: Optional[str] = None
-    utr: Optional[str] = None
+    # MLR info
+    mlr_status: MLRStatus
+    mlr_date_complete: Optional[date] = None
     passport_number: Optional[str] = None
-    driving_license_number: Optional[str] = None
+    driving_license: Optional[str] = None
+    uk_home_telephone: Optional[str] = None
     
-    # Family information
-    number_of_children: Optional[int] = None
-    children_details: Optional[Dict[str, Any]] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_relationship: Optional[str] = None
-    
-    # Employment information
-    employment_status: Optional[str] = None
-    employer_name: Optional[str] = None
-    job_title: Optional[str] = None
-    annual_income: Optional[str] = None
-    
-    # Banking information
-    bank_name: Optional[str] = None
-    bank_sort_code: Optional[str] = None
-    bank_account_number: Optional[str] = None
-    bank_account_name: Optional[str] = None
-    
-    # Additional information
+    # Additional info
+    comments: Optional[str] = None
     notes: Optional[str] = None
-    communication_preferences: Optional[Dict[str, Any]] = None
-    data_protection_consent: Optional[bool] = None
-    marketing_consent: Optional[bool] = None
+    setup_date: Optional[datetime] = None
+    last_edited: Optional[datetime] = None
+    last_edited_by_id: Optional[UUID] = None
+    last_edited_by: Optional[UserSummary] = None
     
     # System fields
     created_at: datetime
     updated_at: Optional[datetime] = None
     
-    # Associated clients (through associations)
+    # Related data - all customer relations
+    incomes: List[IncomeResponse] = []
+    properties: List[PropertyResponse] = []
     client_associations: List[CustomerClientAssociationWithClient] = []
     
     class Config:
         from_attributes = True
 
 
-# Backward compatibility schemas
+# Base schemas for backward compatibility
 class CustomerBase(BaseModel):
-    name: str
+    individual_id: UUID
+    status: CustomerStatus = CustomerStatus.active
 
 
 class CustomerCreate(CustomerBase):

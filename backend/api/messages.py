@@ -6,7 +6,7 @@ import uuid
 from urllib.parse import unquote
 
 from config.database import get_db
-from db.models import User, UserRole, Message, MessageType
+from db.models import User, UserRole, Message, MessageType, Document, DocumentType, DocumentSource, DocumentAgentState
 from db.schemas.user import User as UserSchema
 from db.schemas.message import (
     MessageSend, MessageListItem, Message as MessageSchema, 
@@ -243,8 +243,46 @@ async def twilio_webhook(
         to_phone = form_data.get("To")
         body = form_data.get("Body", "")
         
+        # DEBUG: Log incoming webhook data
+        print(f"=== TWILIO WEBHOOK DEBUG ===")
+        print(f"MessageSid: {message_sid}")
+        print(f"MessageStatus: {message_status}")
+        print(f"From: {from_phone}")
+        print(f"To: {to_phone}")
+        print(f"Body: {body}")
+        print(f"All form data: {dict(form_data)}")
+        print(f"=============================")
+        
+        # DEBUG: Log incoming webhook data
+        print(f"=== TWILIO WEBHOOK DEBUG ===")
+        print(f"MessageSid: {message_sid}")
+        print(f"MessageStatus: {message_status}")
+        print(f"From: {from_phone}")
+        print(f"To: {to_phone}")
+        print(f"Body: {body}")
+        print(f"All form data: {dict(form_data)}")
+        print(f"=============================")
+        
+        # Check for media attachments
+        num_media = int(form_data.get("NumMedia", "0"))
+        media_items = []
+        for i in range(num_media):
+            media_url = form_data.get(f"MediaUrl{i}")
+            media_content_type = form_data.get(f"MediaContentType{i}")
+            if media_url:
+                media_items.append({
+                    "url": media_url,
+                    "content_type": media_content_type,
+                    "index": i
+                })
+        
+        # DEBUG: Log media info
+        print(f"NumMedia: {num_media}")
+        print(f"Media items: {media_items}")
+        
         # Determine if this is an incoming message or status update
-        webhook_type = "incoming" if body else "status_update"
+        webhook_type = "incoming" if (body or num_media > 0) else "status_update"
+        print(f"Webhook type determined: {webhook_type}")
         
         if webhook_type == "incoming":
             # Process incoming message
@@ -254,6 +292,7 @@ async def twilio_webhook(
             
             # Clean phone number (remove whatsapp: prefix if present)
             clean_phone = from_phone.replace("whatsapp:", "")
+            print(f"Looking for customer with phone: {clean_phone}")
             
             # Find customer by phone number to get practice_id
             customer_result = await db.execute(
@@ -261,7 +300,12 @@ async def twilio_webhook(
             )
             customer = customer_result.scalar_one_or_none()
             
+            print(f"Customer found: {customer}")
+            if customer:
+                print(f"Customer ID: {customer.id}, Name: {customer.name}, Practice ID: {customer.practice_id}")
+            
             if not customer:
+                print(f"ERROR: No customer found with phone number {clean_phone}")
                 return {
                     "status": "error", 
                     "message": f"No customer found with phone number {clean_phone}"
@@ -276,11 +320,39 @@ async def twilio_webhook(
                 practice_id=customer.practice_id,  # Use the customer's actual practice_id
                 metadata={
                     "webhook_data": dict(form_data),
-                    "received_at": str(request.headers.get("Date", ""))
+                    "received_at": str(request.headers.get("Date", "")),
+                    "media_count": num_media
                 }
             )
             
             if result["success"]:
+                # Process any media attachments
+                if media_items:
+                    await _process_whatsapp_media_attachments(
+                        db=db,
+                        media_items=media_items,
+                        message_id=result["message"].id,
+                        customer=customer,
+                        practice_id=customer.practice_id,
+                        twilio_sid=message_sid
+                    )
+                
+                # Trigger the Celery task for agent processing
+                try:
+                    from workers.tasks.whatsapp_processor import trigger_whatsapp_processing
+                    
+                    task_result = trigger_whatsapp_processing(
+                        message_id=str(result["message"].id),
+                        customer_id=str(customer.id),
+                        practice_id=str(customer.practice_id)
+                    )
+                    
+                    print(f"🚀 Triggered agent processing task: {task_result}")
+                    
+                except Exception as e:
+                    print(f"❌ Failed to trigger agent processing: {str(e)}")
+                    # Don't fail the webhook if agent processing fails
+                
                 return {"status": "success", "message": "Incoming message processed"}
             else:
                 return {"status": "error", "message": result["error"]}
@@ -539,4 +611,192 @@ async def validate_phone_number(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error validating phone number: {str(e)}"
-        ) 
+        )
+
+
+async def _process_whatsapp_media_attachments(
+    db: AsyncSession,
+    media_items: List[Dict[str, Any]],
+    message_id: uuid.UUID,
+    customer,
+    practice_id: uuid.UUID,
+    twilio_sid: str
+):
+    """
+    Process WhatsApp media attachments by downloading them and creating document records.
+    """
+    import os
+    import aiohttp
+    import mimetypes
+    from datetime import datetime
+    from pathlib import Path
+    
+    try:
+        # Create directory structure: documents/{practice_id}/{client_id}/{year}/{month}/
+        base_dir = Path("documents")
+        practice_dir = base_dir / str(practice_id)
+        
+        # Find the client associated with this customer
+        from sqlalchemy import select
+        from db.models.client import Client
+        from db.models.customer_client_association import CustomerClientAssociation
+        
+        # Get client through customer association
+        client_result = await db.execute(
+            select(Client)
+            .join(CustomerClientAssociation)
+            .where(CustomerClientAssociation.customer_id == customer.id)
+        )
+        clients = client_result.scalars().all()  # Get all clients for this customer
+        
+        print(f"Number of clients found for customer: {len(clients)}")
+        
+        client = None
+        client_id = None
+        
+        if len(clients) == 0:
+            print(f"No client found for customer {customer.id}, will save document without client assignment")
+        elif len(clients) > 1:
+            print(f"Multiple clients ({len(clients)}) found for customer {customer.id}, will save document without client assignment")
+        else:
+            # Exactly one client found - proceed with client assignment
+            client = clients[0]
+            client_id = client.id
+            print(f"Single client found - ID: {client.id}, Business Name: {client.business_name}")
+        
+        # Create directory structure based on whether we have a client or not
+        if client_id:
+            client_dir = practice_dir / str(client_id)
+        else:
+            # Save in practice directory under "unassigned" folder
+            client_dir = practice_dir / "unassigned"
+        
+        # Date-based subdirectories
+        now = datetime.now()
+        date_dir = client_dir / str(now.year) / f"{now.month:02d}"
+        date_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Get Twilio credentials for authenticated requests
+        import os
+        from aiohttp import BasicAuth
+        
+        twilio_account_sid = os.getenv('TWILIO_ACCOUNT_SID')
+        twilio_auth_token = os.getenv('TWILIO_AUTH_TOKEN')
+        
+        if not twilio_account_sid or not twilio_auth_token:
+            print("ERROR: Twilio credentials not found in environment variables")
+            return
+        
+        # Create Basic Auth for Twilio API requests
+        auth = BasicAuth(twilio_account_sid, twilio_auth_token)
+        
+        async with aiohttp.ClientSession() as session:
+            for media_item in media_items:
+                try:
+                    media_url = media_item["url"]
+                    content_type = media_item["content_type"]
+                    media_index = media_item["index"]
+                    
+                    print(f"Downloading media from: {media_url}")
+                    
+                    # Download the media file from Twilio with authentication
+                    async with session.get(media_url, auth=auth) as response:
+                        if response.status == 200:
+                            # Get file extension from content type
+                            extension = mimetypes.guess_extension(content_type) or ".bin"
+                            
+                            # Generate unique filename
+                            timestamp = now.strftime("%Y%m%d_%H%M%S")
+                            filename = f"whatsapp_{timestamp}_{twilio_sid}_{media_index}{extension}"
+                            file_path = date_dir / filename
+                            
+                            # Save file to disk
+                            with open(file_path, 'wb') as f:
+                                async for chunk in response.content.iter_chunked(8192):
+                                    f.write(chunk)
+                            
+                            # Get file size
+                            file_size = os.path.getsize(file_path)
+                            
+                            # Determine document type from content type
+                            doc_type = _get_document_type_from_mime(content_type)
+                            
+                            # Create document record
+                            document = Document(
+                                filename=filename,
+                                original_filename=f"WhatsApp_Media_{media_index}{extension}",
+                                document_url=str(file_path),  # Local file path for now
+                                file_size=str(file_size),
+                                mime_type=content_type,
+                                document_type=doc_type,
+                                document_source=DocumentSource.whatsapp,
+                                document_category="whatsapp_attachment",
+                                title=f"WhatsApp Document from {customer.name}",
+                                description=f"Document received via WhatsApp from {customer.name} ({customer.primary_phone})" + 
+                                           ("" if client_id else " - No client assigned"),
+                                tags=["whatsapp", "incoming", "attachment"] + ([] if client_id else ["unassigned"]),
+                                practice_id=practice_id,
+                                customer_id=customer.id,  # Always assign to the customer
+                                client_id=client_id,  # This might be None
+                                message_id=message_id,
+                                agent_state=DocumentAgentState.pending,
+                                upload_source_details={
+                                    "source": "whatsapp",
+                                    "twilio_sid": twilio_sid,
+                                    "media_url": media_url,
+                                    "media_index": media_index,
+                                    "customer_phone": customer.primary_phone,
+                                    "customer_id": str(customer.id),
+                                    "client_assignment_status": "assigned" if client_id else "unassigned",
+                                    "clients_found_count": len(clients),
+                                    "received_at": now.isoformat()
+                                }
+                            )
+                            
+                            db.add(document)
+                            await db.commit()
+                            await db.refresh(document)
+                            
+                            if client_id:
+                                print(f"Document saved: {filename} ({file_size} bytes) for client {client.business_name}")
+                            else:
+                                print(f"Document saved: {filename} ({file_size} bytes) - unassigned to any client")
+                            
+                        else:
+                            print(f"Failed to download media from {media_url}: HTTP {response.status}")
+                            print(f"Response headers: {dict(response.headers)}")
+                            response_text = await response.text()
+                            print(f"Response body: {response_text[:500]}...")  # First 500 chars
+                            
+                except Exception as e:
+                    print(f"Error processing media item {media_index}: {str(e)}")
+                    import traceback
+                    print(f"Traceback: {traceback.format_exc()}")
+                    continue
+                    
+    except Exception as e:
+        print(f"Error processing WhatsApp media attachments: {str(e)}")
+
+
+def _get_document_type_from_mime(mime_type: str) -> DocumentType:
+    """
+    Map MIME type to DocumentType enum.
+    """
+    mime_type = mime_type.lower()
+    
+    if mime_type.startswith("image/"):
+        return DocumentType.image
+    elif mime_type == "application/pdf":
+        return DocumentType.pdf
+    elif mime_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+        return DocumentType.word_doc
+    elif mime_type in ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
+        return DocumentType.excel
+    elif mime_type in ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]:
+        return DocumentType.powerpoint
+    elif mime_type.startswith("text/"):
+        return DocumentType.text
+    elif mime_type == "text/csv":
+        return DocumentType.csv
+    else:
+        return DocumentType.other 

@@ -1,6 +1,8 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+
 from api.auth import router as auth_router
 from api.users import router as users_router
 from api.customers import router as customers_router

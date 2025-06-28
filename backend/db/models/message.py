@@ -61,4 +61,5 @@ class Message(Base):
     
     # Relationships
     customer = relationship("Customer", back_populates="messages")
-    practice = relationship("Practice", back_populates="messages") 
+    practice = relationship("Practice", back_populates="messages")
+    documents = relationship("Document", back_populates="message") 

@@ -16,6 +16,18 @@ from .message import (
     Message, MessageCreate, MessageSend, MessageUpdate, MessageListItem, 
     MessageResponse, ConversationResponse
 )
+from .individuals import (
+    Individual, IndividualCreate, IndividualBase, IndividualListItem, IndividualResponse,
+    IndividualCreateRequest, IndividualUpdateRequest
+)
+from .income import (
+    Income, IncomeCreate, IncomeUpdate, IncomeBase, IncomeListItem, IncomeResponse,
+    IncomeCreateRequest, IncomeUpdateRequest
+)
+from .property import (
+    Property, PropertyCreate, PropertyUpdate, PropertyBase, PropertyListItem, PropertyResponse,
+    PropertyCreateRequest, PropertyUpdateRequest
+)
 
 __all__ = [
     # User schemas
@@ -39,4 +51,16 @@ __all__ = [
     # Message schemas
     "Message", "MessageCreate", "MessageSend", "MessageUpdate", "MessageListItem",
     "MessageResponse", "ConversationResponse",
+    
+    # Individual schemas
+    "Individual", "IndividualCreate", "IndividualBase", "IndividualListItem", "IndividualResponse",
+    "IndividualCreateRequest", "IndividualUpdateRequest",
+    
+    # Income schemas
+    "Income", "IncomeCreate", "IncomeUpdate", "IncomeBase", "IncomeListItem", "IncomeResponse",
+    "IncomeCreateRequest", "IncomeUpdateRequest",
+    
+    # Property schemas
+    "Property", "PropertyCreate", "PropertyUpdate", "PropertyBase", "PropertyListItem", "PropertyResponse",
+    "PropertyCreateRequest", "PropertyUpdateRequest",
 ] 
