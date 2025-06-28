@@ -145,49 +145,7 @@ async def get_individual_messages(
             detail=f"Error retrieving messages: {str(e)}"
         )
 
-@router.get("/individual/{individual_id}/whatsapp", response_model=List[MessageListItem])
-async def get_individual_whatsapp_messages(
-    individual_id: str,
-    limit: int = 50,
-    offset: int = 0,
-    current_user: UserSchema = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get WhatsApp messages for a specific individual."""
-    
-    # Check permissions
-    if current_user.role not in [UserRole.practice_owner, UserRole.accountant, UserRole.bookkeeper]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions to view messages"
-        )
-    
-    # Parse UUID
-    try:
-        individual_uuid = uuid.UUID(individual_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid individual ID format"
-        )
-    
-    try:
-        messages = await message_service.get_messages_for_individual(
-            db=db,
-            individual_id=individual_uuid,
-            practice_id=current_user.practice_id,
-            message_type=MessageType.whatsapp,
-            limit=limit,
-            offset=offset
-        )
-        
-        return messages
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving WhatsApp messages: {str(e)}"
-        )
+
 
 @router.post("/webhook/twilio")
 async def twilio_webhook(
