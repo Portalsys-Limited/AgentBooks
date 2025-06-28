@@ -9,6 +9,7 @@ import aiohttp
 import mimetypes
 from pathlib import Path
 
+from db.models import Document, Client
 from db.models.message import Message, MessageType, MessageDirection, MessageStatus
 from db.models.individuals import Individual
 from db.models.practice import Practice
@@ -16,10 +17,66 @@ from db.models.documents import Document, DocumentType, DocumentSource, Document
 from db.schemas.message import MessageCreate, MessageUpdate, MessageSend
 from services.twilio_service import twilio_service
 from workers.tasks.whatsapp_processor import process_whatsapp_message_task
+from workers.tasks.document_processor import process_document_ocr
 
 
 class MessageService:
     
+    @staticmethod
+    async def _handle_interactive_reply(db: AsyncSession, webhook_data: Dict[str, Any], individual: Individual, practice: Practice) -> bool:
+        """Handles a reply from an interactive WhatsApp message."""
+        reply_id = webhook_data.get("List-Response-Id") or webhook_data.get("Button-Payload")
+        
+        # Check for our specific 'assign_client' action
+        if reply_id and reply_id.startswith("assign_client:"):
+            try:
+                parts = reply_id.split(':')
+                if len(parts) != 3:
+                    print(f"⚠️ Malformed interactive reply ID: {reply_id}")
+                    return False
+
+                _, doc_id_str, client_id_str = parts
+                document_id = UUID(doc_id_str)
+                client_id = UUID(client_id_str)
+                
+                print(f"✅ Received client assignment reply. Document: {document_id}, Client: {client_id}")
+
+                # Fetch the document and client to update
+                doc_result = await db.execute(select(Document).where(Document.id == document_id))
+                document_to_assign = doc_result.scalar_one_or_none()
+
+                client_result = await db.execute(select(Client).where(Client.id == client_id))
+                client = client_result.scalar_one_or_none()
+
+                if not document_to_assign or not client:
+                    print(f"❌ Could not find document or client for assignment. Doc: {document_to_assign}, Client: {client}")
+                    return False
+                
+                # Assign client to document
+                document_to_assign.client_id = client_id
+                document_to_assign.agent_state = DocumentAgentState.processed
+                document_to_assign.processed_at = datetime.utcnow()
+                db.add(document_to_assign)
+                await db.commit()
+                
+                print(f"✅ Successfully assigned Document {document_id} to Client {client.business_name}")
+
+                # Send confirmation message
+                confirmation_body = f"Thank you! The document has been assigned to {client.business_name}."
+                await twilio_service.send_whatsapp_message(
+                    to_phone=individual.primary_mobile,
+                    from_whatsapp_number=practice.whatsapp_number,
+                    message_body=confirmation_body
+                )
+                return True # Indicates the reply was handled
+
+            except Exception as e:
+                print(f"❌ Error handling interactive reply: {e}")
+                await db.rollback()
+                return False
+        
+        return False # Not an interactive reply we need to handle here
+
     @staticmethod
     async def create_message(db: AsyncSession, message_data: MessageCreate) -> Message:
         """Create a new message in the database"""
@@ -227,104 +284,94 @@ class MessageService:
         webhook_data: Dict[str, Any],
         received_at: str
     ) -> Dict[str, Any]:
-        """Process incoming Twilio webhook for both messages and status updates."""
+        """Process incoming Twilio webhook for WhatsApp messages."""
         try:
-            print("🔄 Starting webhook processing in message service")
+            # Clean phone numbers
+            clean_from_phone = from_phone.replace("whatsapp:", "")
+            clean_to_phone = to_phone.replace("whatsapp:", "")
             
-            # Determine if this is an incoming message or status update
-            is_incoming_message = bool(body or media_items)
-            print(f"📋 Webhook type: {'incoming message' if is_incoming_message else 'status update'}")
+            print(f"📱 Processing WhatsApp message from {clean_from_phone} to {clean_to_phone}")
             
-            if is_incoming_message:
-                # Find practice by WhatsApp number
-                clean_to_phone = to_phone.replace("whatsapp:", "")
-                print(f"🔍 Looking for practice with WhatsApp number: {clean_to_phone}")
-                
-                practice_result = await db.execute(
-                    select(Practice).where(Practice.whatsapp_number == clean_to_phone)
-                )
-                practice = practice_result.scalar_one_or_none()
-                
-                if not practice:
-                    print(f"❌ No practice found with WhatsApp number {clean_to_phone}")
-                    return {
-                        "status": "error",
-                        "message": f"No practice found with WhatsApp number {clean_to_phone}"
-                    }
-                
-                print(f"✅ Found practice: {practice.name} (ID: {practice.id})")
-                
-                # Process incoming message
-                print("🚀 Processing incoming message...")
-                result = await MessageService.process_incoming_message(
+            # Find individual and practice
+            individual_result = await db.execute(select(Individual).where(Individual.primary_mobile == clean_from_phone))
+            individual = individual_result.scalar_one_or_none()
+            
+            practice_result = await db.execute(select(Practice).where(Practice.whatsapp_number == clean_to_phone))
+            practice = practice_result.scalar_one_or_none()
+
+            if not individual or not practice:
+                error_message = f"No individual or practice found for numbers: From={clean_from_phone}, To={clean_to_phone}"
+                print(f"❌ {error_message}")
+                return {"status": "error", "message": error_message}
+
+            print(f"✅ Found individual: {individual.full_name}, Practice: {practice.name}")
+            
+            # Check if this is an interactive reply and handle it
+            was_handled = await MessageService._handle_interactive_reply(db, webhook_data, individual, practice)
+            if was_handled:
+                return {"status": "success", "message": "Interactive reply processed"}
+
+            # --- If not an interactive reply, continue with normal message processing ---
+            
+            print(f"💬 Message body: {body}")
+            print(f"📎 Media items: {len(media_items)}")
+
+            # Create message record
+            message = Message(
+                message_type=MessageType.whatsapp,
+                direction=MessageDirection.incoming,
+                status=MessageStatus.delivered,
+                body=body,
+                individual_id=individual.id,
+                practice_id=practice.id,
+                from_address=from_phone,
+                to_address=to_phone,
+                twilio_sid=message_sid,
+                message_metadata={"webhook_data": webhook_data, "received_at": received_at, "media_count": len(media_items)}
+            )
+            db.add(message)
+            await db.commit()
+            await db.refresh(message)
+            
+            print(f"✅ Message saved with ID: {message.id}")
+            
+            # Process any media attachments
+            if media_items:
+                print(f"📎 Processing {len(media_items)} media attachments...")
+                await MessageService._save_whatsapp_media_attachments(
                     db=db,
-                    from_phone=from_phone,
-                    to_phone=to_phone,
-                    body=body,
-                    twilio_sid=message_sid,
-                    practice_id=practice.id,
                     media_items=media_items,
-                    metadata={
-                        "webhook_data": webhook_data,
-                        "received_at": received_at,
-                        "media_count": len(media_items)
-                    }
-                )
-                
-                print("✅ Message processing result:", result)
-                return result
-                
-            else:
-                print("🔄 Processing status update...")
-                # Process status update
-                status_mapping = {
-                    "sent": MessageStatus.sent,
-                    "delivered": MessageStatus.delivered,
-                    "read": MessageStatus.read,
-                    "failed": MessageStatus.failed,
-                    "undelivered": MessageStatus.failed
-                }
-                
-                new_status = status_mapping.get(message_status.lower())
-                if not new_status:
-                    print(f"⚠️ Ignoring unknown status: {message_status}")
-                    return {"status": "success", "message": "Status update ignored"}
-                    
-                print(f"🔍 Looking for message with Twilio SID: {message_sid}")
-                # Find message by Twilio SID
-                message = await db.execute(
-                    select(Message).where(Message.twilio_sid == message_sid)
-                )
-                message = message.scalar_one_or_none()
-                
-                if not message:
-                    print(f"❌ No message found with Twilio SID: {message_sid}")
-                    return {"status": "error", "message": "Message not found"}
-                
-                print(f"✅ Found message (ID: {message.id})")
-                print(f"📝 Updating status to: {new_status}")
-                
-                # Update message status
-                status_update = MessageUpdate(
-                    status=new_status,
-                    metadata={
-                        "status_update": {
-                            "twilio_status": message_status,
-                            "updated_at": received_at,
-                            "webhook_data": webhook_data
-                        }
-                    }
-                )
-                
-                await MessageService.update_message_status(
-                    db=db,
                     message_id=message.id,
-                    status_update=status_update
+                    individual=individual,
+                    practice_id=practice.id,
+                    twilio_sid=message_sid
+                )
+                print("✅ Media attachments processed")
+                
+                # For media messages, we don't trigger the main agent, as the document workflow handles it
+                return {"status": "success", "message": "Media processed", "message_id": str(message.id)}
+            
+            # For text messages, trigger the WhatsApp processor
+            try:
+                print("🤖 Triggering agent processing task...")
+                task_result = process_whatsapp_message_task.delay(
+                    message_id=str(message.id),
+                    individual_id=str(individual.id),
+                    practice_id=str(practice.id)
                 )
                 
-                print("✅ Status updated successfully")
-                return {"status": "success", "message": "Status updated"}
+                print(f"✅ Agent task triggered (Task ID: {task_result.task_id})")
                 
+                # Update message metadata with task info
+                message.message_metadata = {**message.message_metadata, "celery_task_id": task_result.task_id, "task_triggered_at": datetime.utcnow().isoformat()}
+                await db.commit()
+                
+                return {"status": "success", "message": "Message processed and agent task triggered", "message_id": str(message.id), "task_id": task_result.task_id}
+                
+            except Exception as e:
+                print(f"⚠️ Agent task trigger failed: {str(e)}")
+                return {"status": "partial_success", "message": "Message saved but agent processing failed", "message_id": str(message.id), "error": str(e)}
+            
         except Exception as e:
             print(f"❌ Error in process_twilio_webhook: {str(e)}")
             import traceback
@@ -518,12 +565,17 @@ class MessageService:
                             )
                             
                             db.add(document)
+                            await db.commit()
+                            await db.refresh(document)
+                            
+                            # Trigger OCR processing for PDF and image documents
+                            if document.document_type in [DocumentType.pdf, DocumentType.image]:
+                                print(f"🔍 Triggering OCR processing for document {document.id}")
+                                process_document_ocr.delay(str(document.id))
                             
                     except Exception as e:
                         print(f"Error saving media item {media_index}: {str(e)}")
                         continue
-                
-                await db.commit()
                 
         except Exception as e:
             print(f"Error saving media attachments: {str(e)}")

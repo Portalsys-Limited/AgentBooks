@@ -24,10 +24,13 @@ class DocumentSource(str, enum.Enum):
     other = "other"
 
 class DocumentAgentState(str, enum.Enum):
+    """State of document processing by the agent."""
     pending = "pending"
     processing = "processing"
     processed = "processed"
     failed = "failed"
+    rejected = "rejected"  # When individual is not a customer
+    awaiting_client_selection = "awaiting_client_selection"  # When waiting for client selection via WhatsApp
 
 class Document(Base):
     __tablename__ = "documents"
@@ -61,10 +64,13 @@ class Document(Base):
     description = Column(Text)
     tags = Column(JSON)  # Array of strings
     
+    # OCR and processing
+    raw_extracted_text = Column(Text, nullable=True)  # Raw OCR extracted text
+    
     # Processing state
     agent_state = Column(Enum(DocumentAgentState), default=DocumentAgentState.pending)
     agent_metadata = Column(JSON)  # Store agent processing results
-    upload_source_details = Column(JSON)  # Store details about how/where the document was uploaded from
+    upload_source_details = Column(JSON)
     
     # System fields
     created_at = Column(DateTime(timezone=True), server_default=func.now())
