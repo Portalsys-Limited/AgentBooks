@@ -8,7 +8,13 @@ import { BaseEntity } from '../shared/types'
 // Message enums to match backend
 export enum MessageType {
   WHATSAPP = 'whatsapp',
-  EMAIL = 'email'
+  EMAIL = 'email',
+  SMS = 'sms'
+}
+
+export enum MessageDirection {
+  INCOMING = 'incoming',
+  OUTGOING = 'outgoing'
 }
 
 export enum MessageStatus {
@@ -49,51 +55,52 @@ export interface IndividualWithMessages {
 }
 
 // Core message interface
-export interface Message extends BaseEntity {
+export interface Message {
+  id: string
   practice_id: string
-  customer_id: string
+  individual_id: string
   user_id?: string
   message_type: MessageType
-  content: string
-  subject?: string
-  phone_number?: string
-  email_address?: string
-  is_incoming: boolean
+  direction: MessageDirection
   status: MessageStatus
+  body: string
+  from_address: string
+  to_address: string
   twilio_sid?: string
-  metadata?: Record<string, any>
+  error_message?: string
+  message_metadata?: Record<string, any>
+  created_at: string
+  updated_at?: string
   read_at?: string
-  sent_at?: string
   delivered_at?: string
 }
 
 // Message list item (simplified for lists)
 export interface MessageListItem {
   id: string
-  customer_id: string
-  customer_name: string
   message_type: MessageType
-  content: string
-  is_incoming: boolean
+  direction: MessageDirection
   status: MessageStatus
+  body: string
   created_at: string
+  individual_name?: string
+  individual_id: string
   read_at?: string
+  delivered_at?: string
+  updated_at?: string
 }
 
 // Message send data
 export interface MessageSendData {
-  customer_id: string
+  individual_id: string
   message_type: MessageType
-  content: string
-  subject?: string
-  phone_number?: string
-  email_address?: string
-  metadata?: Record<string, any>
+  body: string
 }
 
 // Message update data
 export interface MessageUpdateData {
   status?: MessageStatus
+  error_message?: string
   metadata?: Record<string, any>
 }
 
@@ -101,14 +108,14 @@ export interface MessageUpdateData {
 export interface ConversationResponse {
   individual_id: string
   individual_name: string
-  messages: Message[]
+  messages: MessageListItem[]
   total_count: number
 }
 
 // Message response wrapper
 export interface MessageResponse {
   success: boolean
-  message: string
+  message?: string
   data?: Message
 }
 
