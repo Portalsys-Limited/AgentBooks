@@ -32,6 +32,11 @@ aiofiles==23.2.1
 pandas==2.1.3
 openpyxl==3.1.2
 
+# OCR dependencies
+pytesseract==0.3.10
+pdf2image==1.16.3
+Pillow==10.2.0
+
 # Analytics Agent dependencies - Latest stable versions
 langgraph>=0.2.50
 langgraph-supervisor>=0.0.27

@@ -560,15 +560,18 @@ async def create_sample_data():
                 {"customer_idx": 1, "client_idx": 0, "relationship": RelationshipType.shareholder, "is_primary": False, "percentage": "35%"},  # Ashani - Shareholder
                 {"customer_idx": 2, "client_idx": 0, "relationship": RelationshipType.son, "is_primary": False, "percentage": "25%"},  # Siyan - Son
                 
-                # ABCD Ltd associations
-                {"customer_idx": 3, "client_idx": 1, "relationship": RelationshipType.director, "is_primary": True, "percentage": "60%"},  # Alice - Director (PRIMARY)
+                # ABCD Ltd associations - Adding Nyal as investor
+                {"customer_idx": 0, "client_idx": 1, "relationship": RelationshipType.investor, "is_primary": False, "percentage": "15%"},  # Nyal - Investor
+                {"customer_idx": 3, "client_idx": 1, "relationship": RelationshipType.director, "is_primary": True, "percentage": "45%"},  # Alice - Director (PRIMARY)
                 {"customer_idx": 4, "client_idx": 1, "relationship": RelationshipType.shareholder, "is_primary": False, "percentage": "40%"},  # Robert - Shareholder
                 
-                # Harrison Bernstein Ltd associations
+                # Harrison Bernstein Ltd associations - Adding Nyal as consultant
+                {"customer_idx": 0, "client_idx": 2, "relationship": RelationshipType.consultant, "is_primary": False, "percentage": "0%"},  # Nyal - Technology Consultant
                 {"customer_idx": 5, "client_idx": 2, "relationship": RelationshipType.director, "is_primary": True, "percentage": "70%"},  # Harrison - Director (PRIMARY)
                 {"customer_idx": 6, "client_idx": 2, "relationship": RelationshipType.spouse, "is_primary": False, "percentage": "30%"},  # Sarah - Spouse & Shareholder
                 
-                # Beckfields Store Ltd associations
+                # Beckfields Store Ltd associations - Adding Nyal as technology advisor
+                {"customer_idx": 0, "client_idx": 3, "relationship": RelationshipType.consultant, "is_primary": False, "percentage": "0%"},  # Nyal - Technology Advisor
                 {"customer_idx": 7, "client_idx": 3, "relationship": RelationshipType.director, "is_primary": True, "percentage": "55%"},  # David - Director (PRIMARY)
                 {"customer_idx": 8, "client_idx": 3, "relationship": RelationshipType.partner, "is_primary": False, "percentage": "45%"},  # Emma - Partner
             ]

@@ -8,7 +8,6 @@ from typing import List, Dict, Any
 
 from db.models import Message, Individual, Practice, Document
 from .chat_agent import chat_agent
-from .document_agent import document_agent
 from .tools import WhatsAppTools
 
 SUPERVISOR_PROMPT = """# WhatsApp Service Supervisor - {practice_name}
@@ -158,7 +157,6 @@ class MaxClientWhatsAppAgent:
             supervisor_graph = create_supervisor(
                 agents=[
                     chat_agent(self.practice, self.individual, self.db_session),
-                    document_agent(self.practice, self.individual, self.db_session)
                 ],
                 model=ChatOpenAI(model="gpt-4o-mini"),
                 prompt=supervisor_prompt,
