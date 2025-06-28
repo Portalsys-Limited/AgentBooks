@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Date
+from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Date, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -68,6 +68,8 @@ class Individual(Base):
     practice = relationship("Practice", back_populates="individuals")
     last_edited_by = relationship("User", foreign_keys=[last_edited_by_id])
     customers = relationship("Customer", back_populates="individual")
+    messages = relationship("Message", back_populates="individual")
+    documents = relationship("Document", back_populates="individual")
     
     def __repr__(self):
         return f"<Individual(id={self.id}, name='{self.first_name} {self.last_name}', email='{self.email}')>"

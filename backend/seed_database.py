@@ -59,7 +59,7 @@ async def create_sample_data():
             # Create Practice with WhatsApp number
             practice = Practice(
                 name="AgentBooks Test Practice",
-                whatsapp_number="whatsapp:+14155238886",
+                whatsapp_number="+14155238886",
                 main_phone="+442079460755", 
                 main_email="admin@agentbooks.com"
             )

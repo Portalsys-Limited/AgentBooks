@@ -1,65 +1,57 @@
-from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, DateTime, Text, Boolean
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Text, JSON, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-import enum
 import uuid
+import enum
 
 from .base import Base
 
-# Enum for message type
 class MessageType(str, enum.Enum):
-    email = "email"
     whatsapp = "whatsapp"
+    email = "email"
+    sms = "sms"
 
-# Enum for message direction
 class MessageDirection(str, enum.Enum):
     incoming = "incoming"
     outgoing = "outgoing"
 
-# Enum for message status
 class MessageStatus(str, enum.Enum):
+    pending = "pending"
     sent = "sent"
     delivered = "delivered"
     read = "read"
     failed = "failed"
-    pending = "pending"
 
 class Message(Base):
     __tablename__ = "messages"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    
-    # Message metadata
-    message_type = Column(SQLEnum(MessageType), nullable=False, index=True)
-    direction = Column(SQLEnum(MessageDirection), nullable=False, index=True)
-    status = Column(SQLEnum(MessageStatus), default=MessageStatus.pending, index=True)
-    
-    # Message content
-    subject = Column(String)  # For emails, null for WhatsApp
-    body = Column(Text, nullable=False)
-    
-    # Contact information
-    customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False, index=True)
-    
-    # Communication details
-    from_address = Column(String)  # Email address or phone number
-    to_address = Column(String)    # Email address or phone number
-    
-    # External service identifiers
-    twilio_sid = Column(String, unique=True)  # Twilio message SID for WhatsApp
-    email_message_id = Column(String)         # Email message ID if using email service
-    
-    # Additional metadata
-    message_metadata = Column(JSONB)  # Store additional service-specific data
-    error_message = Column(Text)  # Store error details if message failed
-    
-    # System fields
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     practice_id = Column(UUID(as_uuid=True), ForeignKey("practices.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    individual_id = Column(UUID(as_uuid=True), ForeignKey("individuals.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # The staff member who sent the message
     
+    message_type = Column(Enum(MessageType), nullable=False)
+    direction = Column(Enum(MessageDirection), nullable=False)
+    status = Column(Enum(MessageStatus), nullable=False, default=MessageStatus.pending)
+    
+    body = Column(Text, nullable=False)
+    from_address = Column(String, nullable=False)  # Phone number or email
+    to_address = Column(String, nullable=False)    # Phone number or email
+    
+    twilio_sid = Column(String, nullable=True)     # For WhatsApp/SMS messages
+    error_message = Column(String, nullable=True)
+    message_metadata = Column(JSON, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    read_at = Column(DateTime(timezone=True), nullable=True)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
-    customer = relationship("Customer", back_populates="messages")
     practice = relationship("Practice", back_populates="messages")
-    documents = relationship("Document", back_populates="message") 
+    individual = relationship("Individual", back_populates="messages")
+    user = relationship("User", back_populates="messages")
+    documents = relationship("Document", back_populates="message")
+
+    def __repr__(self):
+        return f"<Message(id={self.id}, type={self.message_type}, direction={self.direction}, status={self.status})>" 
