@@ -320,28 +320,7 @@ async def create_customer_income(
     return income
 
 
-@router.get("/{customer_id}/properties", response_model=List[PropertyResponse])
-async def get_customer_properties(
-    customer_id: UUID,
-    current_user: UserSchema = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get all properties for a customer"""
-    # Verify customer exists and belongs to practice
-    customer = await db.execute(
-        select(Customer).where(
-            Customer.id == customer_id,
-            Customer.practice_id == current_user.practice_id
-        )
-    )
-    customer = customer.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
-    
-    result = await db.execute(
-        select(Property).where(Property.customer_id == customer_id)
-    )
-    return result.scalars().all()
+
 
 
 @router.post("/{customer_id}/properties", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
