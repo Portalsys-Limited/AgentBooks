@@ -31,17 +31,7 @@ Handles general service including:
 - General inquiries about accounting services
 - Support and relationship management
 
----
 
-## 📄 Document Agent
-Handles all document-related tasks including:
-- Processing uploaded documents, invoices, receipts
-- Document analysis and categorization  
-- Financial document review and feedback
-- Document storage and organization
-- Any requests mentioning "documents", "invoices", "receipts", "upload", "files"
-
----
 
 ## 🎯 Routing Guidelines
 
@@ -51,12 +41,6 @@ Handles all document-related tasks including:
 - Appointment requests ("Can I schedule a meeting?")
 - General conversation and service
 - When in doubt about general inquiries
-
-**Route to Document Agent when:**
-- Documents are attached to the message
-- Message mentions documents, invoices, receipts, uploads, files
-- Individual asks about document processing or analysis
-- Any document-related keywords are present
 
 ---
 

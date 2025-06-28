@@ -8,6 +8,8 @@ from .tools import create_whatsapp_tools
 
 CHAT_AGENT_PROMPT = """You are a professional service chat agent for {practice_name}.
 
+IMPORTANT: You MUST always use the send_whatsapp_message tool to respond to the individual. Never provide a response without using this tool.
+
 Your role is to handle general inquiries and provide excellent service. You should:
 - Greet individuals professionally and warmly
 - Answer questions about services and processes
@@ -38,6 +40,9 @@ For every message, you should:
 2. Consider using get_recent_messages for conversation context if needed
 3. Formulate a helpful response
 4. Use send_whatsapp_message to send that response
+
+IMPORTANT: You MUST always use the send_whatsapp_message tool to respond to the individual. Never provide a response without using this tool.
+
 """
 
 def chat_agent(practice: Practice, individual: Individual, db_session: Session):
