@@ -4,14 +4,6 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '../../../components/layout/AppLayout'
 import { useAuth } from '../../../hooks/useAuth'
-import TaskTimeline from './components/TaskTimeline'
-import InformationTab from './components/tabs/InformationTab'
-import ServicesTab from './components/tabs/ServicesTab'
-import BillingTab from './components/tabs/BillingTab'
-import CommunicationTab from './components/tabs/CommunicationTab'
-import MLRTab from './components/tabs/MLRTab'
-import AssignedStaffTab from './components/tabs/AssignedStaffTab'
-import DocumentsTab from './components/tabs/DocumentsTab'
 import { 
   BuildingOfficeIcon, 
   EnvelopeIcon,
@@ -28,56 +20,132 @@ import {
   ShieldCheckIcon,
   UsersIcon,
   FolderIcon,
-  CheckIcon
+  CheckIcon,
+  PencilIcon,
+  ComputerDesktopIcon,
+  GlobeAltIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline'
+
+// Import client detail tab components
+import ClientDetailBasicInfoTab from './components/tabs/ClientDetailBasicInfoTab'
+import ClientDetailCompanyDataTab from './components/tabs/ClientDetailCompanyDataTab'
+import ClientDetailBusinessAddressTab from './components/tabs/ClientDetailBusinessAddressTab'
+import ClientDetailTradingAddressTab from './components/tabs/ClientDetailTradingAddressTab'
+import ClientDetailMLRTab from './components/tabs/ClientDetailMLRTab'
+import ClientDetailServicesTab from './components/tabs/ClientDetailServicesTab'
+import ClientDetailAccountingSoftwareTab from './components/tabs/ClientDetailAccountingSoftwareTab'
+import ClientDetailBillingTab from './components/tabs/ClientDetailBillingTab'
+import ClientDetailPracticeInfoTab from './components/tabs/ClientDetailPracticeInfoTab'
+import ClientDetailEngagementLetterTab from './components/tabs/ClientDetailEngagementLetterTab'
+import ClientDetailCompaniesHouseDataTab from './components/tabs/ClientDetailCompaniesHouseDataTab'
+import ClientDetailCompanyDetailsTab from './components/tabs/ClientDetailCompanyDetailsTab'
+import ClientDetailEmailsTab from './components/tabs/ClientDetailEmailsTab'
+import ClientLinkedCustomersTab from './components/tabs/ClientLinkedCustomersTab'
+import TaskTimeline from './components/TaskTimeline'
 
 interface ClientDetail {
   id: string
+  
+  // Basic Info
+  client_code?: string
   business_name: string
-  trading_name?: string
   business_type?: string
-  companies_house_number?: string
-  vat_number?: string
-  corporation_tax_utr?: string
-  paye_reference?: string
   nature_of_business?: string
-  sic_code?: string
-  incorporation_date?: string
-  accounting_period_end?: string
-  main_email?: string
-  main_phone?: string
+  
+  // Company Data
+  companies_house_number?: string
+  date_of_incorporation?: string
+  companies_house_auth_code?: string
+  is_currently_dormant?: boolean
+  registered_at_practice_address?: boolean
+  registered_address_different_from_trading?: boolean
+  
+  // Business Address
   registered_address?: {
     line_1?: string
     line_2?: string
-    city?: string
+    town?: string
     county?: string
-    postcode?: string
     country?: string
+    postcode?: string
   }
+  
+  // Trading Address
   trading_address?: {
     line_1?: string
     line_2?: string
-    city?: string
+    town?: string
     county?: string
-    postcode?: string
     country?: string
+    postcode?: string
   }
-  banking?: {
-    name?: string
-    sort_code?: string
-    account_number?: string
-    account_name?: string
-  }
-  notes?: string
-  created_at?: string
-  updated_at?: string
-  customer?: {
+  
+  // MLR
+  mlr_status?: string
+  
+  // Services (many-to-many relationship)
+  services?: Array<{
     id: string
     name: string
-    first_name?: string
-    last_name?: string
+    category: string
+    enabled: boolean
+  }>
+  
+  // Accounting Software
+  accounting_software?: string[]
+  
+  // Billing
+  billing_frequency?: string
+  payment_method?: string
+  max_credit_allowance?: number
+  debt_credit_amount?: number
+  
+  // Practice Info
+  client_manager?: string
+  outsource_manager?: string
+  payroll_manager?: string
+  client_source?: string
+  client_primary_contact?: string
+  
+  // Engagement Letter
+  engagement_letter_status?: string
+  engagement_letter_last_review_date?: string
+  
+  // Companies House RAW Data
+  companies_house_raw_data?: any
+  companies_house_last_sync?: string
+  
+  // Company Details
+  website?: string
+  instagram?: string
+  facebook?: string
+  
+  // Emails
+  emails?: Array<{
+    id: string
+    email: string
+    type: string
+    is_primary: boolean
+  }>
+  
+  // Other
+  setup_date?: string
+  last_edited_date?: string
+  last_edited_by?: string
+  notes?: string
+  
+  // Linked Customers
+  linked_customers?: Array<{
+    id: string
+    name: string
     email?: string
-  }
+    phone?: string
+    created_at?: string
+  }>
+  
+  created_at?: string
+  updated_at?: string
 }
 
 export default function ClientDetailPage() {
@@ -89,39 +157,27 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<ClientDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('information')
+  const [activeTab, setActiveTab] = useState('basic-info')
+  const [isEditing, setIsEditing] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [clientServices, setClientServices] = useState<{[key: string]: boolean}>({})
 
   const tabs = [
-    { id: 'information', name: 'Information', icon: IdentificationIcon },
-    { id: 'services', name: 'Services', icon: ChartBarIcon },
-    { id: 'billing', name: 'Billing', icon: CurrencyPoundIcon },
-    { id: 'communication', name: 'Communication', icon: ChatBubbleLeftRightIcon },
+    { id: 'basic-info', name: 'Basic Info', icon: IdentificationIcon },
+    { id: 'company-data', name: 'Company Data', icon: DocumentTextIcon },
+    { id: 'business-address', name: 'Business Address', icon: MapPinIcon },
+    { id: 'trading-address', name: 'Trading Address', icon: MapPinIcon },
     { id: 'mlr', name: 'MLR', icon: ShieldCheckIcon },
-    { id: 'assigned_staff', name: 'Assigned Staff', icon: UsersIcon },
-    { id: 'documents', name: 'Documents', icon: FolderIcon }
-  ]
-
-  // List of accounting services
-  const accountingServices = [
-    { id: 'bookkeeping', name: 'Bookkeeping', category: 'Core Services' },
-    { id: 'vat_returns', name: 'VAT Returns', category: 'Core Services' },
-    { id: 'payroll', name: 'Payroll Services', category: 'Core Services' },
-    { id: 'annual_accounts', name: 'Annual Accounts Preparation', category: 'Core Services' },
-    { id: 'corporation_tax', name: 'Corporation Tax Returns', category: 'Tax Services' },
-    { id: 'self_assessment', name: 'Self Assessment Returns', category: 'Tax Services' },
-    { id: 'tax_planning', name: 'Tax Planning & Advice', category: 'Tax Services' },
-    { id: 'company_formation', name: 'Company Formation', category: 'Business Services' },
-    { id: 'company_secretarial', name: 'Company Secretarial', category: 'Business Services' },
-    { id: 'business_advice', name: 'Business Advisory', category: 'Business Services' },
-    { id: 'management_accounts', name: 'Management Accounts', category: 'Reporting' },
-    { id: 'budgeting_forecasting', name: 'Budgeting & Forecasting', category: 'Reporting' },
-    { id: 'financial_analysis', name: 'Financial Analysis', category: 'Reporting' },
-    { id: 'audit_assurance', name: 'Audit & Assurance', category: 'Compliance' },
-    { id: 'companies_house', name: 'Companies House Filings', category: 'Compliance' },
-    { id: 'hmrc_correspondence', name: 'HMRC Correspondence', category: 'Compliance' }
+    { id: 'services', name: 'Services', icon: ChartBarIcon },
+    { id: 'accounting-software', name: 'Accounting Software', icon: ComputerDesktopIcon },
+    { id: 'billing', name: 'Billing', icon: CurrencyPoundIcon },
+    { id: 'practice-info', name: 'Practice Info', icon: UsersIcon },
+    { id: 'engagement-letter', name: 'Engagement Letter', icon: ClipboardDocumentListIcon },
+    { id: 'companies-house-data', name: 'Companies House Data', icon: DocumentTextIcon },
+    { id: 'company-details', name: 'Company Details', icon: GlobeAltIcon },
+    { id: 'emails', name: 'Emails', icon: EnvelopeIcon },
+    { id: 'linked-customers', name: 'Linked Customers', icon: UserIcon },
+    { id: 'tasks', name: 'Tasks', icon: ClipboardDocumentListIcon }
   ]
 
   useEffect(() => {
@@ -144,44 +200,16 @@ export default function ClientDetailPage() {
     }
   }
 
-  const formatAddress = (address?: any) => {
-    if (!address) return ''
-    const parts = [
-      address.line_1,
-      address.line_2,
-      address.city,
-      address.county,
-      address.postcode,
-      address.country
-    ].filter(Boolean)
-    return parts.join(', ')
-  }
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleDateString()
-  }
-
-  const handleFieldChange = (key: string, value: string) => {
-    if (!client) return
-    
-    // Handle nested fields (like address fields)
-    if (key.includes('.')) {
-      const [parentKey, childKey] = key.split('.')
+  const handleFieldChange = (key: string, value: string | boolean | number | string[]) => {
+    if (client) {
       setClient(prev => ({
         ...prev!,
-        [parentKey]: {
-          ...prev![parentKey as keyof ClientDetail],
-          [childKey]: value
-        }
+        [key]: value,
+        last_edited_date: new Date().toISOString(),
+        last_edited_by: user?.email || user?.name
       }))
-    } else {
-      setClient(prev => ({
-        ...prev!,
-        [key]: value
-      }))
+      setHasUnsavedChanges(true)
     }
-    setHasUnsavedChanges(true)
   }
 
   const handleSave = async () => {
@@ -193,6 +221,7 @@ export default function ClientDetailPage() {
       const { updateClient } = await import('../../../lib/clients')
       await updateClient(clientId, client)
       setHasUnsavedChanges(false)
+      setIsEditing(false)
       // Show success message (you could add a toast notification here)
     } catch (err) {
       console.error('Error saving client:', err)
@@ -202,59 +231,125 @@ export default function ClientDetailPage() {
     }
   }
 
-  const handleServiceToggle = (serviceId: string, enabled: boolean) => {
-    setClientServices(prev => ({
-      ...prev,
-      [serviceId]: enabled
-    }))
-    setHasUnsavedChanges(true)
-  }
-
   const renderTabContent = () => {
     if (!client) return null
 
     switch (activeTab) {
-      case 'information':
+      case 'basic-info':
         return (
-          <InformationTab
-            client={client}
+          <ClientDetailBasicInfoTab 
+            client={client} 
             onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'company-data':
+        return (
+          <ClientDetailCompanyDataTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'business-address':
+        return (
+          <ClientDetailBusinessAddressTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'trading-address':
+        return (
+          <ClientDetailTradingAddressTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'mlr':
+        return (
+          <ClientDetailMLRTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
           />
         )
       case 'services':
-        const servicesByCategory = accountingServices.reduce((acc, service) => {
-          if (!acc[service.category]) {
-            acc[service.category] = []
-          }
-          acc[service.category].push(service)
-          return acc
-        }, {} as {[key: string]: typeof accountingServices})
-
         return (
-          <ServicesTab
-            clientServices={clientServices}
-            onServiceToggle={handleServiceToggle}
+          <ClientDetailServicesTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'accounting-software':
+        return (
+          <ClientDetailAccountingSoftwareTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
           />
         )
       case 'billing':
         return (
-          <BillingTab />
+          <ClientDetailBillingTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
         )
-      case 'communication':
+      case 'practice-info':
         return (
-          <CommunicationTab />
+          <ClientDetailPracticeInfoTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
         )
-      case 'mlr':
+      case 'engagement-letter':
         return (
-          <MLRTab />
+          <ClientDetailEngagementLetterTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
         )
-      case 'assigned_staff':
+      case 'companies-house-data':
         return (
-          <AssignedStaffTab />
+          <ClientDetailCompaniesHouseDataTab 
+            client={client} 
+            onRefresh={fetchClient}
+          />
         )
-      case 'documents':
+      case 'company-details':
         return (
-          <DocumentsTab />
+          <ClientDetailCompanyDetailsTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'emails':
+        return (
+          <ClientDetailEmailsTab 
+            client={client} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'linked-customers':
+        return (
+          <ClientLinkedCustomersTab 
+            client={client} 
+            onRefresh={fetchClient}
+          />
+        )
+      case 'tasks':
+        return (
+          <div className="space-y-6">
+            <TaskTimeline clientId={clientId} />
+          </div>
         )
       default:
         return null
@@ -274,7 +369,7 @@ export default function ClientDetailPage() {
   if (error || !client) {
     return (
       <AppLayout>
-        <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-red-50 border border-red-200 rounded-md p-4">
             <div className="flex">
               <div className="ml-3">
@@ -284,10 +379,10 @@ export default function ClientDetailPage() {
                 </div>
                 <div className="mt-4">
                   <button
-                    onClick={() => router.push('/clients')}
+                    onClick={() => router.push('/search_client_customer')}
                     className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200"
                   >
-                    Back to Clients
+                    Back to Customers & Clients
                   </button>
                 </div>
               </div>
@@ -300,76 +395,82 @@ export default function ClientDetailPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen">
-        {/* Header with full width */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center space-x-4 mb-4">
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <ArrowLeftIcon className="h-4 w-4 mr-1" />
+              Back
+            </button>
+          </div>
+          
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.back()}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <ArrowLeftIcon className="h-4 w-4 mr-1" />
-                Back
-              </button>
-              <div className="flex items-center space-x-4">
-                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <BuildingOfficeIcon className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{client.business_name}</h1>
-                  {client.trading_name && client.trading_name !== client.business_name && (
-                    <p className="text-sm text-gray-500">Trading as: {client.trading_name}</p>
-                  )}
-                  <p className="text-sm text-gray-400">Client ID: {client.id}</p>
-                </div>
+              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                <BuildingOfficeIcon className="h-8 w-8 text-green-600" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{client.business_name}</h1>
+                <p className="text-lg text-gray-500">{client.business_type?.replace('_', ' ')}</p>
+                <p className="text-sm text-gray-400">Client ID: {client.id}</p>
               </div>
             </div>
-            
-            {/* Save Button */}
-            {hasUnsavedChanges && (
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <CheckIcon className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </>
-                )}
-              </button>
-            )}
+            <div className="flex space-x-3">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false)
+                      setHasUnsavedChanges(false)
+                      fetchClient() // Reset changes
+                    }}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving || !hasUnsavedChanges}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  <PencilIcon className="h-4 w-4 mr-2" />
+                  Edit Client
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Content with full width */}
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
-          {/* Task Timeline */}
-          <TaskTimeline />
-
-          {/* Tabs Navigation */}
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="-mb-px flex space-x-8">
+        {/* Tabs */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-6 px-6 overflow-x-auto" aria-label="Tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center space-x-2 ${
+                    className={`${
                       activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                    data-reactid={`tab-${tab.id}`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-5 w-5" />
                     <span>{tab.name}</span>
                   </button>
                 )
@@ -378,7 +479,9 @@ export default function ClientDetailPage() {
           </div>
 
           {/* Tab Content */}
-          {renderTabContent()}
+          <div className="p-6">
+            {renderTabContent()}
+          </div>
         </div>
       </div>
     </AppLayout>

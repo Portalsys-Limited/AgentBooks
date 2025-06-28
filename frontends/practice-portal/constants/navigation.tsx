@@ -78,7 +78,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   },
   {
     name: 'Clients & Customers',
-    href: '/clients',
+    href: '/search_client_customer',
     icon: UsersIcon,
     roles: [UserRole.PRACTICE_OWNER, UserRole.ACCOUNTANT, UserRole.BOOKKEEPER]
   },
