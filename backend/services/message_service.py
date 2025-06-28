@@ -171,41 +171,42 @@ class MessageService:
         practice_id: UUID,
         user_id: Optional[UUID] = None
     ) -> Dict[str, Any]:
-        """Send a WhatsApp message and save to database"""
+        """
+        Send a WhatsApp message and save to database.
+        """
         try:
-            # Get individual details
+            # 1️⃣ Get individual details
             individual_result = await db.execute(
                 select(Individual).where(Individual.id == message_data.individual_id)
             )
             individual = individual_result.scalar_one_or_none()
-            
+
             if not individual:
                 return {"success": False, "error": "Individual not found"}
-            
+
             if not individual.primary_mobile:
                 return {"success": False, "error": "Individual has no phone number"}
-            
-            # Validate phone number
+
             if not await twilio_service.validate_phone_number(individual.primary_mobile):
                 return {"success": False, "error": "Invalid phone number format"}
-            
-            # Get practice's whatsapp_number
+
+            # 2️⃣ Get practice details
             practice_result = await db.execute(
                 select(Practice).where(Practice.id == practice_id)
             )
             practice = practice_result.scalar_one_or_none()
-            
+
             if not practice or not practice.whatsapp_number:
                 return {"success": False, "error": "Practice has no whatsapp_number"}
-            
-            # Send message via Twilio
+
+            # 3️⃣ Call Twilio service
             twilio_response = await twilio_service.send_whatsapp_message(
-                individual.primary_mobile,
-                message_data.body,
-                practice.whatsapp_number
+                to_phone=individual.primary_mobile,  # E.164 format, prefix added inside TwilioService
+                from_whatsapp_number=practice.whatsapp_number,  # E.164 format, prefix added inside TwilioService
+                message_body=message_data.body
             )
-            
-            # Create message record in database
+
+            # 4️⃣ Create message record
             message_create = MessageCreate(
                 message_type=MessageType.whatsapp,
                 direction=MessageDirection.outgoing,
@@ -213,13 +214,13 @@ class MessageService:
                 individual_id=message_data.individual_id,
                 practice_id=practice_id,
                 user_id=user_id,
-                from_address=practice.whatsapp_number,
+                from_address=f"whatsapp:{practice.whatsapp_number}",
                 to_address=f"whatsapp:{individual.primary_mobile}"
             )
-            
+
             db_message = await MessageService.create_message(db, message_create)
-            
-            # Update message with Twilio response
+
+            # 5️⃣ Update message with Twilio result
             if twilio_response["success"]:
                 db_message.twilio_sid = twilio_response["sid"]
                 db_message.status = MessageStatus.sent
@@ -234,20 +235,21 @@ class MessageService:
                     "error_code": twilio_response.get("error_code"),
                     "error_message": twilio_response.get("error_message")
                 }
-            
+
             await db.commit()
             await db.refresh(db_message)
-            
+
             return {
                 "success": twilio_response["success"],
                 "message": db_message,
                 "twilio_response": twilio_response
             }
-            
+
         except Exception as e:
             await db.rollback()
             return {"success": False, "error": f"Unexpected error: {str(e)}"}
-    
+
+        
     @staticmethod
     async def update_message_status(
         db: AsyncSession,
