@@ -14,62 +14,98 @@ import {
   PencilIcon,
   ArrowLeftIcon,
   IdentificationIcon,
-  BanknotesIcon
+  BanknotesIcon,
+  ShieldCheckIcon,
+  CurrencyPoundIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline'
+
+// Import customer detail tab components
+import CustomerDetailCoreInfoTab from './components/tabs/CustomerDetailCoreInfoTab'
+import CustomerDetailBasicInfoTab from './components/tabs/CustomerDetailBasicInfoTab'
+import CustomerDetailContactInfoTab from './components/tabs/CustomerDetailContactInfoTab'
+import CustomerDetailAddressTab from './components/tabs/CustomerDetailAddressTab'
+import CustomerDetailPracticeInfoTab from './components/tabs/CustomerDetailPracticeInfoTab'
+import CustomerDetailMLRInfoTab from './components/tabs/CustomerDetailMLRInfoTab'
+import CustomerDetailIncomeInfoTab from './components/tabs/CustomerDetailIncomeInfoTab'
+import CustomerLinkedClientsTab from './components/tabs/CustomerLinkedClientsTab'
 
 interface CustomerDetail {
   id: string
   name: string
   first_name?: string
   last_name?: string
-  primary_email?: string
-  secondary_email?: string
-  primary_phone?: string
-  secondary_phone?: string
+  title?: string
+  middle_name?: string
   date_of_birth?: string
-  gender?: string
+  deceased_date?: string
   marital_status?: string
+  gender?: string
+  nationality?: string
   national_insurance_number?: string
-  utr?: string
-  home_address?: {
-    line_1?: string
-    line_2?: string
-    city?: string
-    county?: string
-    postcode?: string
-    country?: string
-  }
-  correspondence_address?: {
-    line_1?: string
-    line_2?: string
-    city?: string
-    county?: string
-    postcode?: string
-    country?: string
-  }
-  banking?: {
-    name?: string
-    sort_code?: string
-    account_number?: string
-    account_name?: string
-  }
-  employment?: {
-    employer_name?: string
-    job_title?: string
-    employment_status?: string
-  }
-  emergency_contact?: {
-    name?: string
-    relationship?: string
-    phone?: string
-    email?: string
-  }
+  personal_utr_number?: string
+  
+  // Contact Info
+  email?: string
+  secondary_email?: string
+  primary_mobile_number?: string
+  secondary_mobile_number?: string
+  uk_home_telephone_number?: string
+  
+  // Address
+  address_line_1?: string
+  address_line_2?: string
+  town_city?: string
+  county?: string
+  postcode?: string
+  country?: string
+  
+  // Core Info
+  customer_id?: string
+  client_code?: string
+  status?: string
+  setup_date?: string
+  last_edited_date?: string
+  last_edited_by?: string
+  comments?: string
   notes?: string
-  client_companies?: Array<{
+  relationship_type?: string
+  self_assessment_own?: boolean
+  self_assessment_client_relation?: string
+  
+  // Practice Info
+  primary_accounting_contact?: string
+  acting_from_date?: string
+  
+  // MLR Info
+  mlr_status?: string
+  mlr_date_completed?: string
+  passport_number?: string
+  driving_licence_number?: string
+  
+  // Income Info
+  rental_property?: boolean
+  income_relation?: string
+  self_employment_income_relation?: string
+  employment_income_relation?: string
+  rental_income?: number
+  dividend_income?: number
+  pension_income?: number
+  foreign_income?: number
+  state_benefit_income?: number
+  child_benefit?: number
+  tax_universal_credits?: number
+  capital_gains_income?: number
+  
+  // Linked clients
+  linked_clients?: Array<{
     id: string
-    business_name: string
+    name: string
     business_type?: string
+    status?: string
+    created_at?: string
   }>
+  
   created_at?: string
   updated_at?: string
 }
@@ -83,6 +119,19 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<CustomerDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('core-info')
+  const [isEditing, setIsEditing] = useState(false)
+
+  const tabs = [
+    { id: 'core-info', name: 'Core Info', icon: IdentificationIcon },
+    { id: 'basic-info', name: 'Basic Info', icon: UserIcon },
+    { id: 'contact-info', name: 'Contact Info', icon: PhoneIcon },
+    { id: 'address', name: 'Address', icon: MapPinIcon },
+    { id: 'practice-info', name: 'Practice Info', icon: DocumentTextIcon },
+    { id: 'mlr-info', name: 'MLR Info', icon: ShieldCheckIcon },
+    { id: 'income-info', name: 'Income Info', icon: CurrencyPoundIcon },
+    { id: 'linked-clients', name: 'Linked Clients', icon: BuildingOfficeIcon }
+  ]
 
   useEffect(() => {
     if (customerId) {
@@ -104,22 +153,93 @@ export default function CustomerDetailPage() {
     }
   }
 
-  const formatAddress = (address?: any) => {
-    if (!address) return 'Not provided'
-    const parts = [
-      address.line_1,
-      address.line_2,
-      address.city,
-      address.county,
-      address.postcode,
-      address.country
-    ].filter(Boolean)
-    return parts.length > 0 ? parts.join(', ') : 'Not provided'
+  const handleFieldChange = (key: string, value: string | boolean | number) => {
+    if (customer) {
+      setCustomer(prev => ({
+        ...prev!,
+        [key]: value,
+        last_edited_date: new Date().toISOString(),
+        last_edited_by: user?.email || user?.name
+      }))
+    }
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Not provided'
-    return new Date(dateString).toLocaleDateString()
+  const handleSave = async () => {
+    // TODO: Implement customer update API call
+    console.log('Saving customer:', customer)
+    setIsEditing(false)
+  }
+
+  const renderTabContent = () => {
+    if (!customer) return null
+
+    switch (activeTab) {
+      case 'core-info':
+        return (
+          <CustomerDetailCoreInfoTab 
+            customer={customer} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'basic-info':
+        return (
+          <CustomerDetailBasicInfoTab 
+            customer={customer} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'contact-info':
+        return (
+          <CustomerDetailContactInfoTab 
+            customer={customer} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'address':
+        return (
+          <CustomerDetailAddressTab 
+            customer={customer} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'practice-info':
+        return (
+          <CustomerDetailPracticeInfoTab 
+            customer={customer} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'mlr-info':
+        return (
+          <CustomerDetailMLRInfoTab 
+            customer={customer} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'income-info':
+        return (
+          <CustomerDetailIncomeInfoTab 
+            customer={customer} 
+            onFieldChange={handleFieldChange}
+            isEditing={isEditing}
+          />
+        )
+      case 'linked-clients':
+        return (
+          <CustomerLinkedClientsTab 
+            customer={customer} 
+            onRefresh={fetchCustomer}
+          />
+        )
+      default:
+        return null
+    }
   }
 
   if (loading) {
@@ -145,7 +265,7 @@ export default function CustomerDetailPage() {
                 </div>
                 <div className="mt-4">
                   <button
-                    onClick={() => router.push('/clients')}
+                    onClick={() => router.push('/search_client_customer')}
                     className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200"
                   >
                     Back to Customers & Clients
@@ -187,177 +307,63 @@ export default function CustomerDetailPage() {
                 <p className="text-sm text-gray-400">Customer ID: {customer.id}</p>
               </div>
             </div>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-              <PencilIcon className="h-4 w-4 mr-2" />
-              Edit Customer
-            </button>
+            <div className="flex space-x-3">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Save Changes
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  <PencilIcon className="h-4 w-4 mr-2" />
+                  Edit Customer
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Personal Information */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <IdentificationIcon className="h-5 w-5 mr-2" />
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(customer.date_of_birth)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Gender</label>
-                  <p className="mt-1 text-sm text-gray-900 capitalize">{customer.gender || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Marital Status</label>
-                  <p className="mt-1 text-sm text-gray-900 capitalize">{customer.marital_status || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">National Insurance Number</label>
-                  <p className="mt-1 text-sm text-gray-900">{customer.national_insurance_number || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">UTR</label>
-                  <p className="mt-1 text-sm text-gray-900">{customer.utr || 'Not provided'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Information */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <EnvelopeIcon className="h-5 w-5 mr-2" />
-                Contact Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Primary Email</label>
-                  <p className="mt-1 text-sm text-gray-900">{customer.primary_email || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Secondary Email</label>
-                  <p className="mt-1 text-sm text-gray-900">{customer.secondary_email || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Primary Phone</label>
-                  <p className="mt-1 text-sm text-gray-900">{customer.primary_phone || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Secondary Phone</label>
-                  <p className="mt-1 text-sm text-gray-900">{customer.secondary_phone || 'Not provided'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Addresses */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <MapPinIcon className="h-5 w-5 mr-2" />
-                Addresses
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Home Address</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatAddress(customer.home_address)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Correspondence Address</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatAddress(customer.correspondence_address)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Banking Information */}
-            {customer.banking && (
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <BanknotesIcon className="h-5 w-5 mr-2" />
-                  Banking Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Bank Name</label>
-                    <p className="mt-1 text-sm text-gray-900">{customer.banking.name || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Account Name</label>
-                    <p className="mt-1 text-sm text-gray-900">{customer.banking.account_name || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Sort Code</label>
-                    <p className="mt-1 text-sm text-gray-900">{customer.banking.sort_code || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Account Number</label>
-                    <p className="mt-1 text-sm text-gray-900">{customer.banking.account_number || 'Not provided'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Notes */}
-            {customer.notes && (
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Notes</h3>
-                <p className="text-sm text-gray-900 whitespace-pre-wrap">{customer.notes}</p>
-              </div>
-            )}
+        {/* Tabs */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`${
+                      activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                    data-reactid={`tab-${tab.id}`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{tab.name}</span>
+                  </button>
+                )
+              })}
+            </nav>
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-8">
-            {/* Companies */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <BuildingOfficeIcon className="h-5 w-5 mr-2" />
-                Companies ({customer.client_companies?.length || 0})
-              </h3>
-              {customer.client_companies && customer.client_companies.length > 0 ? (
-                <div className="space-y-3">
-                  {customer.client_companies.map((company) => (
-                    <div key={company.id} className="p-3 border border-gray-200 rounded-md">
-                      <div className="font-medium text-gray-900">{company.business_name}</div>
-                      {company.business_type && (
-                        <div className="text-sm text-gray-500 capitalize">
-                          {company.business_type.replace('_', ' ')}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => router.push(`/companies/${company.id}`)}
-                        className="text-sm text-blue-600 hover:text-blue-500 mt-1"
-                      >
-                        View Details →
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No companies associated with this client.</p>
-              )}
-            </div>
-
-            {/* Metadata */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <CalendarIcon className="h-5 w-5 mr-2" />
-                Record Information
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Created</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(customer.created_at)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Last Updated</label>
-                  <p className="mt-1 text-sm text-gray-900">{formatDate(customer.updated_at)}</p>
-                </div>
-              </div>
-            </div>
+          {/* Tab Content */}
+          <div className="p-6">
+            {renderTabContent()}
           </div>
         </div>
       </div>

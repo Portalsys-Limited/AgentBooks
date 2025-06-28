@@ -68,7 +68,7 @@ export async function getMessage(messageId: string): Promise<Message> {
 }
 
 /**
- * Update message status
+ * Update message status (internal use)
  */
 export async function updateMessageStatus(
   messageId: string, 
@@ -118,28 +118,87 @@ export async function markMessageAsRead(messageId: string): Promise<Message> {
 
 /**
  * Get customers with message summary for the communication page
+ * This function fetches all customers and enriches them with message activity data
  */
 export async function getCustomersWithMessageSummary(): Promise<CustomerWithMessages[]> {
   try {
     // Get all customers first
     const customers = await getCustomers()
     
-    // Transform to CustomerWithMessages format
-    // Note: In a real implementation, you'd want a dedicated backend endpoint
-    // that returns customers with message counts and last contact info
-    const customersWithMessages: CustomerWithMessages[] = customers.map(customer => ({
-      id: customer.id,
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-      status: 'active', // You'd get this from the customer data
-      unread_count: 0, // This would come from a backend endpoint
-      total_messages: 0, // This would come from a backend endpoint
-      companies: [], // This would come from associated companies
-      avatar: customer.name.split(' ').map(n => n[0]).join('').toUpperCase()
-    }))
+    // Fetch message data for each customer
+    const customersWithMessages: CustomerWithMessages[] = await Promise.all(
+      customers.map(async (customer) => {
+        try {
+          // Get recent messages for this customer to determine activity
+          const conversation = await getCustomerMessages(customer.id, undefined, 10, 0)
+          
+          // Count unread messages (incoming messages without read_at)
+          const unreadCount = conversation.messages.filter(
+            msg => msg.is_incoming && !msg.read_at
+          ).length
+          
+          // Get the most recent message timestamp
+          const lastMessage = conversation.messages[0] // messages are ordered by most recent first
+          const lastContact = lastMessage ? lastMessage.created_at : undefined
+          
+          return {
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            status: 'active' as const,
+            last_contact: lastContact,
+            unread_count: unreadCount,
+            total_messages: conversation.total_count,
+            companies: [], // Could be populated from customer relationships
+            avatar: customer.name.split(' ').map(n => n[0]).join('').toUpperCase()
+          }
+        } catch (error) {
+          // If we can't get messages for this customer, still include them with zero counts
+          console.warn(`Could not load messages for customer ${customer.id}:`, error)
+          return {
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            status: 'active' as const,
+            unread_count: 0,
+            total_messages: 0,
+            companies: [],
+            avatar: customer.name.split(' ').map(n => n[0]).join('').toUpperCase()
+          }
+        }
+      })
+    )
     
-    return customersWithMessages
+    // Sort customers by message activity:
+    // 1. Customers with unread messages first
+    // 2. Then by most recent contact
+    // 3. Then by total message count
+    // 4. Finally alphabetically by name
+    const sortedCustomers = customersWithMessages.sort((a, b) => {
+      // Unread messages take priority
+      if (a.unread_count !== b.unread_count) {
+        return b.unread_count - a.unread_count
+      }
+      
+      // Then sort by most recent contact
+      if (a.last_contact && b.last_contact) {
+        return new Date(b.last_contact).getTime() - new Date(a.last_contact).getTime()
+      }
+      if (a.last_contact && !b.last_contact) return -1
+      if (!a.last_contact && b.last_contact) return 1
+      
+      // Then by total message count
+      if (a.total_messages !== b.total_messages) {
+        return b.total_messages - a.total_messages
+      }
+      
+      // Finally alphabetically
+      return a.name.localeCompare(b.name)
+    })
+    
+    return sortedCustomers
   } catch (error) {
     console.error('Error fetching customers with message summary:', error)
     return []
@@ -147,58 +206,88 @@ export async function getCustomersWithMessageSummary(): Promise<CustomerWithMess
 }
 
 /**
- * Get recent messages across all customers (for dashboard/overview)
+ * Bulk validate multiple phone numbers
  */
-export async function getRecentMessages(limit: number = 20): Promise<MessageListItem[]> {
-  // Note: This would need a dedicated backend endpoint
-  // For now, this is a placeholder that would need to be implemented
-  throw new Error('getRecentMessages endpoint not yet implemented in backend')
+export async function validateMultiplePhoneNumbers(
+  phoneNumbers: string[]
+): Promise<Array<{ phone_number: string; is_valid: boolean; formatted_for_whatsapp?: string }>> {
+  const validationPromises = phoneNumbers.map(async (phoneNumber) => {
+    try {
+      const result = await validatePhoneNumber(phoneNumber)
+      return {
+        phone_number: phoneNumber,
+        is_valid: result.data.is_valid,
+        formatted_for_whatsapp: result.data.formatted_for_whatsapp
+      }
+    } catch (error) {
+      return {
+        phone_number: phoneNumber,
+        is_valid: false
+      }
+    }
+  })
+  
+  return Promise.all(validationPromises)
 }
 
 /**
- * Search messages by content
+ * Get message analytics data based on practice stats
  */
-export async function searchMessages(
-  query: string,
-  customerId?: string,
-  messageType?: MessageType
-): Promise<MessageListItem[]> {
-  // Note: This would need a dedicated backend endpoint for search
-  // For now, this is a placeholder that would need to be implemented
-  throw new Error('searchMessages endpoint not yet implemented in backend')
-}
-
-/**
- * Get message thread/conversation with context
- */
-export async function getMessageThread(
-  messageId: string,
-  contextLimit: number = 10
-): Promise<Message[]> {
-  // This would get a message and surrounding context messages
-  // Would need a dedicated backend endpoint
-  throw new Error('getMessageThread endpoint not yet implemented in backend')
-}
-
-/**
- * Bulk mark messages as read for a customer
- */
-export async function markCustomerMessagesAsRead(customerId: string): Promise<void> {
-  // This would need a dedicated backend endpoint
-  throw new Error('markCustomerMessagesAsRead endpoint not yet implemented in backend')
-}
-
-/**
- * Get message analytics/insights
- */
-export async function getMessageAnalytics(
-  startDate?: string,
-  endDate?: string
-): Promise<{
-  response_time_avg: number
-  messages_by_day: Array<{ date: string, count: number }>
-  top_customers: Array<{ customer_id: string, customer_name: string, message_count: number }>
+export async function getMessageAnalytics(): Promise<{
+  total_messages: number
+  weekly_messages: number
+  whatsapp_percentage: number
+  email_percentage: number
+  growth_rate?: number
 }> {
-  // This would need a dedicated backend endpoint for analytics
-  throw new Error('getMessageAnalytics endpoint not yet implemented in backend')
+  try {
+    const stats = await getMessagingStats()
+    
+    const whatsapp_percentage = stats.total_messages > 0 
+      ? Math.round((stats.whatsapp_messages / stats.total_messages) * 100)
+      : 0
+    
+    const email_percentage = stats.total_messages > 0
+      ? Math.round((stats.email_messages / stats.total_messages) * 100)
+      : 0
+    
+    return {
+      total_messages: stats.total_messages,
+      weekly_messages: stats.weekly_messages,
+      whatsapp_percentage,
+      email_percentage
+    }
+  } catch (error) {
+    console.error('Error fetching message analytics:', error)
+    throw error
+  }
+}
+
+/**
+ * Check Twilio sandbox setup status
+ */
+export async function checkTwilioSetupStatus(): Promise<{
+  qr_available: boolean
+  participants_count: number
+  setup_complete: boolean
+}> {
+  try {
+    const [qrResponse, participantsResponse] = await Promise.all([
+      getTwilioSandboxQR().catch(() => ({ success: false })),
+      getTwilioSandboxParticipants().catch(() => ({ success: false, data: { total_count: 0 } }))
+    ])
+    
+    return {
+      qr_available: qrResponse.success,
+      participants_count: participantsResponse.data?.total_count || 0,
+      setup_complete: qrResponse.success && (participantsResponse.data?.total_count || 0) > 0
+    }
+  } catch (error) {
+    console.error('Error checking Twilio setup status:', error)
+    return {
+      qr_available: false,
+      participants_count: 0,
+      setup_complete: false
+    }
+  }
 }

@@ -22,7 +22,11 @@ import {
   SparklesIcon,
   ChevronDownIcon,
   ArrowPathIcon,
-  XMarkIcon
+  XMarkIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+  ChartBarIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline'
 import { 
   CheckCircleIcon as CheckCircleIconSolid,
@@ -42,7 +46,11 @@ import {
   getCustomersWithMessageSummary,
   markMessageAsRead,
   getMessagingStats,
-  getTwilioSandboxQR
+  getTwilioSandboxQR,
+  getTwilioSandboxParticipants,
+  validatePhoneNumber,
+  getMessageAnalytics,
+  checkTwilioSetupStatus
 } from '../../lib/messages/service'
 
 export default function CommunicationPage() {
@@ -62,10 +70,14 @@ function CommunicationContent() {
   const [messageType, setMessageType] = useState<MessageType>(MessageType.WHATSAPP)
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadingMessages, setLoadingMessages] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTwilioSetup, setShowTwilioSetup] = useState(false)
+  const [showAnalytics, setShowAnalytics] = useState(false)
   const [stats, setStats] = useState<any>(null)
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [twilioStatus, setTwilioStatus] = useState<any>(null)
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -75,6 +87,8 @@ function CommunicationContent() {
   useEffect(() => {
     loadCustomers()
     loadStats()
+    loadAnalytics()
+    checkTwilioStatus()
   }, [])
 
   // Auto-scroll to bottom when new messages arrive
@@ -96,15 +110,23 @@ function CommunicationContent() {
   const loadCustomers = async () => {
     try {
       setLoading(true)
+      setError(null)
+      console.log('Loading customers with message data...')
+      
       const customersData = await getCustomersWithMessageSummary()
+      console.log('Loaded customers:', customersData)
+      
       setCustomers(customersData)
+      
+      // Auto-select the first customer with messages, or just the first customer
       if (customersData.length > 0 && !selectedCustomer) {
-        setSelectedCustomer(customersData[0])
-        loadMessages(customersData[0].id)
+        const customerWithMessages = customersData.find(c => c.total_messages > 0) || customersData[0]
+        console.log('Auto-selecting customer:', customerWithMessages)
+        handleCustomerSelect(customerWithMessages)
       }
     } catch (err) {
-      setError('Failed to load customers')
       console.error('Error loading customers:', err)
+      setError('Failed to load customers. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -112,23 +134,45 @@ function CommunicationContent() {
 
   const loadMessages = async (customerId: string) => {
     try {
+      setLoadingMessages(true)
+      setError(null)
+      console.log('Loading messages for customer:', customerId)
+      
       const conversation = await getCustomerMessages(customerId)
-      setMessages(conversation.messages)
+      console.log('Loaded conversation:', conversation)
+      
+      setMessages(conversation.messages || [])
       
       // Mark unread messages as read
-      const unreadMessages = conversation.messages.filter(
+      const unreadMessages = conversation.messages?.filter(
         msg => msg.is_incoming && !msg.read_at
-      )
-      for (const msg of unreadMessages) {
-        try {
-          await markMessageAsRead(msg.id)
-        } catch (err) {
-          console.error('Error marking message as read:', err)
+      ) || []
+      
+      if (unreadMessages.length > 0) {
+        console.log('Marking', unreadMessages.length, 'messages as read')
+        for (const msg of unreadMessages) {
+          try {
+            await markMessageAsRead(msg.id)
+          } catch (err) {
+            console.error('Error marking message as read:', err)
+          }
         }
+        
+        // Update the customer's unread count in the list
+        setCustomers(prev => 
+          prev.map(c => 
+            c.id === customerId 
+              ? { ...c, unread_count: 0 }
+              : c
+          )
+        )
       }
     } catch (err) {
-      setError('Failed to load messages')
       console.error('Error loading messages:', err)
+      setError('Failed to load messages for this customer.')
+      setMessages([])
+    } finally {
+      setLoadingMessages(false)
     }
   }
 
@@ -141,14 +185,48 @@ function CommunicationContent() {
     }
   }
 
+  const loadAnalytics = async () => {
+    try {
+      const analyticsData = await getMessageAnalytics()
+      setAnalytics(analyticsData)
+    } catch (err) {
+      console.error('Error loading analytics:', err)
+    }
+  }
+
+  const checkTwilioStatus = async () => {
+    try {
+      const statusData = await checkTwilioSetupStatus()
+      setTwilioStatus(statusData)
+    } catch (err) {
+      console.error('Error checking Twilio status:', err)
+    }
+  }
+
   const handleCustomerSelect = (customer: CustomerWithMessages) => {
+    console.log('Selecting customer:', customer)
     setSelectedCustomer(customer)
-    loadMessages(customer.id)
     setError(null)
+    loadMessages(customer.id)
   }
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedCustomer || sendingMessage) return
+
+    // Validate phone number if sending WhatsApp
+    if (messageType === MessageType.WHATSAPP && selectedCustomer.phone) {
+      try {
+        const validation = await validatePhoneNumber(selectedCustomer.phone)
+        if (!validation.data.is_valid) {
+          setError(`Invalid phone number format: ${selectedCustomer.phone}`)
+          return
+        }
+      } catch (err) {
+        setError('Failed to validate phone number')
+        console.error('Phone validation error:', err)
+        return
+      }
+    }
 
     const messageData: MessageSendData = {
       customer_id: selectedCustomer.id,
@@ -161,28 +239,38 @@ function CommunicationContent() {
     try {
       setSendingMessage(true)
       setError(null)
+      console.log('Sending message:', messageData)
       
       const response = await sendMessage(messageData)
+      console.log('Message send response:', response)
       
       if (response.success && response.data) {
         // Add the new message to the current conversation
         setMessages(prev => [...prev, response.data!])
         setNewMessage('')
         
-        // Update customer's last contact time
+        // Update customer's last contact time and message count
         setCustomers(prev => 
           prev.map(c => 
             c.id === selectedCustomer.id 
-              ? { ...c, last_contact: new Date().toISOString() }
+              ? { 
+                  ...c, 
+                  last_contact: new Date().toISOString(),
+                  total_messages: c.total_messages + 1
+                }
               : c
           )
         )
+
+        // Refresh stats
+        loadStats()
+        loadAnalytics()
       } else {
         setError(response.message || 'Failed to send message')
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to send message')
       console.error('Error sending message:', err)
+      setError(err.message || 'Failed to send message')
     } finally {
       setSendingMessage(false)
       inputRef.current?.focus()
@@ -261,11 +349,26 @@ function CommunicationContent() {
             <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setShowTwilioSetup(!showTwilioSetup)}
+                onClick={() => setShowAnalytics(!showAnalytics)}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                title="Setup Twilio"
+                title="View Analytics"
               >
-                <SparklesIcon className="h-5 w-5" />
+                <ChartBarIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setShowTwilioSetup(!showTwilioSetup)}
+                className={`p-2 rounded-lg ${
+                  twilioStatus?.setup_complete 
+                    ? 'text-green-600 hover:bg-green-50' 
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                }`}
+                title="Twilio Setup"
+              >
+                {twilioStatus?.setup_complete ? (
+                  <ShieldCheckIcon className="h-5 w-5" />
+                ) : (
+                  <SparklesIcon className="h-5 w-5" />
+                )}
               </button>
               <button
                 onClick={loadCustomers}
@@ -302,6 +405,23 @@ function CommunicationContent() {
               </div>
             </div>
           )}
+
+          {/* Twilio Status Indicator */}
+          {twilioStatus && (
+            <div className={`mt-2 p-2 rounded text-xs flex items-center space-x-2 ${
+              twilioStatus.setup_complete 
+                ? 'bg-green-50 text-green-700' 
+                : 'bg-yellow-50 text-yellow-700'
+            }`}>
+              <UsersIcon className="h-4 w-4" />
+              <span>
+                {twilioStatus.setup_complete 
+                  ? `WhatsApp Ready (${twilioStatus.participants_count} participants)` 
+                  : 'WhatsApp Setup Required'
+                }
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Customer List */}
@@ -310,6 +430,9 @@ function CommunicationContent() {
             <div className="p-4 text-center text-gray-500">
               <UserCircleIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
               <p>No customers found</p>
+              <p className="text-xs mt-1">
+                {customers.length === 0 ? 'Try refreshing or check your customer data' : 'Try adjusting your search'}
+              </p>
             </div>
           ) : (
             filteredCustomers.map((customer) => (
@@ -420,7 +543,14 @@ function CommunicationContent() {
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 ? (
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center">
+                    <ArrowPathIcon className="h-6 w-6 animate-spin text-blue-600 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Loading messages...</p>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <ChatBubbleLeftIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -503,13 +633,13 @@ function CommunicationContent() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    disabled={sendingMessage}
+                    disabled={sendingMessage || loadingMessages}
                   />
                 </div>
                 
                 <button
                   onClick={handleSendMessage}
-                  disabled={!newMessage.trim() || sendingMessage}
+                  disabled={!newMessage.trim() || sendingMessage || loadingMessages}
                   className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
                   {sendingMessage ? (
@@ -528,47 +658,62 @@ function CommunicationContent() {
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Select a customer
               </h3>
-              <p className="text-gray-500">
+              <p className="text-gray-500 mb-4">
                 Choose a customer from the sidebar to start messaging
               </p>
+              {customers.length === 0 && (
+                <button
+                  onClick={loadCustomers}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  Refresh Customer List
+                </button>
+              )}
             </div>
           </div>
         )}
       </div>
 
+      {/* Analytics Modal */}
+      {showAnalytics && (
+        <AnalyticsModal 
+          onClose={() => setShowAnalytics(false)}
+          analytics={analytics}
+          stats={stats}
+        />
+      )}
+
       {/* Twilio Setup Modal */}
       {showTwilioSetup && (
-        <TwilioSetupModal onClose={() => setShowTwilioSetup(false)} />
+        <TwilioSetupModal 
+          onClose={() => {
+            setShowTwilioSetup(false)
+            checkTwilioStatus()
+          }}
+        />
       )}
     </div>
   )
 }
 
-// Twilio Setup Modal Component
-function TwilioSetupModal({ onClose }: { onClose: () => void }) {
-  const [qrData, setQrData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadQrCode()
-  }, [])
-
-  const loadQrCode = async () => {
-    try {
-      const response = await getTwilioSandboxQR()
-      setQrData(response)
-    } catch (err) {
-      console.error('Error loading QR code:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+// Analytics Modal Component
+function AnalyticsModal({ 
+  onClose, 
+  analytics, 
+  stats 
+}: { 
+  onClose: () => void
+  analytics: any
+  stats: any
+}) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">WhatsApp Setup</h3>
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold flex items-center">
+            <ChartBarIcon className="h-6 w-6 mr-2 text-blue-600" />
+            Message Analytics
+          </h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -577,41 +722,225 @@ function TwilioSetupModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         
+        {analytics && stats ? (
+          <div className="space-y-6">
+            {/* Overview Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-blue-600">{stats.total_messages}</p>
+                <p className="text-sm text-blue-700">Total Messages</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-green-600">{stats.weekly_messages}</p>
+                <p className="text-sm text-green-700">This Week</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-purple-600">{analytics.whatsapp_percentage}%</p>
+                <p className="text-sm text-purple-700">WhatsApp</p>
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg text-center">
+                <p className="text-2xl font-bold text-orange-600">{analytics.email_percentage}%</p>
+                <p className="text-sm text-orange-700">Email</p>
+              </div>
+            </div>
+
+            {/* Message Type Breakdown */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium mb-3 text-gray-900">Message Distribution</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <ChatBubbleLeftIcon className="h-5 w-5 text-green-600 mr-2" />
+                    <span className="text-sm">WhatsApp Messages</span>
+                  </div>
+                  <span className="text-sm font-medium">{stats.whatsapp_messages}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <EnvelopeIcon className="h-5 w-5 text-blue-600 mr-2" />
+                    <span className="text-sm">Email Messages</span>
+                  </div>
+                  <span className="text-sm font-medium">{stats.email_messages}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Time Period */}
+            <div className="text-sm text-gray-500 text-center">
+              <p>Analytics period: {stats.period.week_start} to {stats.period.today}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p>Loading analytics...</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Enhanced Twilio Setup Modal Component
+function TwilioSetupModal({ onClose }: { onClose: () => void }) {
+  const [qrData, setQrData] = useState<any>(null)
+  const [participants, setParticipants] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'qr' | 'participants'>('qr')
+
+  useEffect(() => {
+    loadSetupData()
+  }, [])
+
+  const loadSetupData = async () => {
+    try {
+      const [qrResponse, participantsResponse] = await Promise.all([
+        getTwilioSandboxQR(),
+        getTwilioSandboxParticipants()
+      ])
+      
+      setQrData(qrResponse)
+      setParticipants(participantsResponse)
+    } catch (err) {
+      console.error('Error loading setup data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center">
+            <SparklesIcon className="h-6 w-6 mr-2 text-blue-600" />
+            WhatsApp Setup
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-4">
+          <button
+            onClick={() => setActiveTab('qr')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 ${
+              activeTab === 'qr'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            QR Code
+          </button>
+          <button
+            onClick={() => setActiveTab('participants')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 ${
+              activeTab === 'participants'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Participants ({participants?.data?.total_count || 0})
+          </button>
+        </div>
+        
         {loading ? (
           <div className="text-center py-8">
             <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
             <p>Loading setup information...</p>
           </div>
-        ) : qrData?.success ? (
-          <div className="text-center">
-            {qrData.data?.qr_image_url && (
-              <img
-                src={qrData.data.qr_image_url}
-                alt="WhatsApp QR Code"
-                className="mx-auto mb-4 border rounded"
-              />
-            )}
-            <p className="text-sm text-gray-600 mb-2">
-              {qrData.data?.instructions || 'Scan this QR code with WhatsApp to connect to the sandbox'}
-            </p>
-            {qrData.data?.sandbox_number && (
-              <p className="text-xs text-gray-500">
-                Sandbox: {qrData.data.sandbox_number}
-              </p>
-            )}
-          </div>
         ) : (
-          <div className="text-center py-4">
-            <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
-            <p className="text-sm text-red-600">
-              {qrData?.error || 'Unable to load WhatsApp setup'}
-            </p>
-            {qrData?.suggestion && (
-              <p className="text-xs text-gray-500 mt-2">
-                {qrData.suggestion}
-              </p>
+          <>
+            {/* QR Code Tab */}
+            {activeTab === 'qr' && (
+              <div className="text-center">
+                {qrData?.success ? (
+                  <>
+                    {qrData.data?.qr_image_url && (
+                      <img
+                        src={qrData.data.qr_image_url}
+                        alt="WhatsApp QR Code"
+                        className="mx-auto mb-4 border rounded"
+                      />
+                    )}
+                    <p className="text-sm text-gray-600 mb-2">
+                      {qrData.data?.instructions || 'Scan this QR code with WhatsApp to connect to the sandbox'}
+                    </p>
+                    {qrData.data?.sandbox_number && (
+                      <p className="text-xs text-gray-500">
+                        Sandbox: {qrData.data.sandbox_number}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="py-4">
+                    <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                    <p className="text-sm text-red-600">
+                      {qrData?.error || 'Unable to load WhatsApp setup'}
+                    </p>
+                    {qrData?.suggestion && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {qrData.suggestion}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
-          </div>
+
+            {/* Participants Tab */}
+            {activeTab === 'participants' && (
+              <div>
+                {participants?.success ? (
+                  <>
+                    <div className="mb-4">
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <UsersIcon className="h-5 w-5" />
+                        <span>
+                          {participants.data?.total_count || 0} authorized phone numbers
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {participants.data?.participants && participants.data.participants.length > 0 ? (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {participants.data.participants.map((phone: string, index: number) => (
+                          <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
+                            <PhoneIcon className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm font-mono">{phone}</span>
+                            <CheckCircleIconSolid className="h-4 w-4 text-green-500 ml-auto" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <UsersIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">No participants yet</p>
+                        <p className="text-xs">Scan the QR code to authorize your phone</p>
+                      </div>
+                    )}
+                    
+                    {participants.data?.note && (
+                      <p className="text-xs text-gray-500 mt-4 text-center">
+                        {participants.data.note}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                    <p className="text-sm text-red-600">
+                      {participants?.error || 'Unable to load participants'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
