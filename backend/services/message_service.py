@@ -25,7 +25,12 @@ class MessageService:
     @staticmethod
     async def _handle_interactive_reply(db: AsyncSession, webhook_data: Dict[str, Any], individual: Individual, practice: Practice) -> bool:
         """Handles a reply from an interactive WhatsApp message."""
-        reply_id = webhook_data.get("List-Response-Id") or webhook_data.get("Button-Payload")
+        if webhook_data.get("MessageType") != "interactive":
+            return False
+            
+        # For list replies, the ID is in 'ListId'. For button replies, it's in 'ButtonText'.
+        # The 'Body' often serves as a fallback containing the selection.
+        reply_id = webhook_data.get("ListId") or webhook_data.get("ButtonText") or webhook_data.get("Body")
         
         # Check for our specific 'assign_client' action
         if reply_id and reply_id.startswith("assign_client:"):
@@ -286,6 +291,8 @@ class MessageService:
     ) -> Dict[str, Any]:
         """Process incoming Twilio webhook for WhatsApp messages."""
         try:
+            print(f"🪝 Full Twilio webhook payload: {webhook_data}")
+            
             # Clean phone numbers
             clean_from_phone = from_phone.replace("whatsapp:", "")
             clean_to_phone = to_phone.replace("whatsapp:", "")
