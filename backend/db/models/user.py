@@ -28,4 +28,7 @@ class User(Base):
     
     # Relationships
     practice = relationship("Practice", back_populates="users")
-    assigned_clients = relationship("Customer", secondary="user_client_assignments", back_populates="assigned_users") 
+    uploaded_documents = relationship("Document", foreign_keys="Document.uploaded_by_user_id", back_populates="uploaded_by")
+    validated_documents = relationship("Document", foreign_keys="Document.validated_by_user_id", back_populates="validated_by")
+    archived_documents = relationship("Document", foreign_keys="Document.archived_by_user_id", back_populates="archived_by")
+    messages = relationship("Message", back_populates="user") 

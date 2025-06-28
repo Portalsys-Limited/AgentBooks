@@ -33,14 +33,17 @@ case "$SERVICE_TYPE" in
         ;;
     "worker")
         echo "Starting Celery worker..."
+        export PYTHONPATH=/app:$PYTHONPATH
         exec celery -A workers.celery_app worker --loglevel=info --concurrency=2
         ;;
     "beat")
         echo "Starting Celery beat scheduler..."
+        export PYTHONPATH=/app:$PYTHONPATH
         exec celery -A workers.celery_app beat --loglevel=info
         ;;
     "flower")
         echo "Starting Flower monitoring..."
+        export PYTHONPATH=/app:$PYTHONPATH
         exec celery -A workers.celery_app flower --port=5555
         ;;
     "seeder")
