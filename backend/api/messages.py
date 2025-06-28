@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, func
 from typing import List, Optional, Dict, Any
 import uuid
 from urllib.parse import unquote
@@ -77,7 +78,7 @@ async def get_individual_messages(
     current_user: UserSchema = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all messages for a specific individual."""
+    """Get all messages for a specific individual with pagination."""
     
     # Check permissions
     if current_user.role not in [UserRole.practice_owner, UserRole.accountant, UserRole.bookkeeper]:
@@ -96,31 +97,44 @@ async def get_individual_messages(
         )
     
     try:
-        # Get conversation data
-        conversation_data = await message_service.get_conversation_with_individual(
-            db=db,
-            individual_id=individual_uuid,
-            practice_id=current_user.practice_id,
-            limit=limit,
-            offset=offset
+        # Get individual info
+        individual_result = await db.execute(
+            select(Individual).where(Individual.id == individual_uuid)
         )
+        individual = individual_result.scalar_one_or_none()
         
-        if not conversation_data["individual"]:
+        if not individual:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Individual not found"
             )
-        
-        # Filter by message type if specified
-        messages = conversation_data["messages"]
+
+        # Build base query for messages
+        base_query = select(Message).where(
+            and_(
+                Message.individual_id == individual_uuid,
+                Message.practice_id == current_user.practice_id
+            )
+        )
+
+        # Add message type filter if specified
         if message_type:
-            messages = [msg for msg in messages if msg.message_type == message_type]
+            base_query = base_query.where(Message.message_type == message_type)
+
+        # Get total count efficiently using COUNT
+        count_query = select(func.count()).select_from(base_query)
+        total_count = await db.scalar(count_query) or 0
+
+        # Get paginated messages
+        messages_query = base_query.order_by(Message.created_at.desc()).offset(offset).limit(limit)
+        result = await db.execute(messages_query)
+        messages = result.scalars().all()
         
         return ConversationResponse(
             individual_id=individual_uuid,
-            individual_name=conversation_data["individual"].full_name,
+            individual_name=individual.full_name,
             messages=messages,
-            total_count=len(messages)
+            total_count=total_count
         )
         
     except HTTPException:
