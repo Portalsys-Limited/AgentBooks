@@ -19,6 +19,35 @@ export enum MessageStatus {
   FAILED = 'failed'
 }
 
+// Individual entity (from backend)
+export interface Individual extends BaseEntity {
+  practice_id: string
+  first_name: string
+  last_name: string
+  full_name: string
+  email?: string
+  phone?: string
+  address?: string
+  city?: string
+  postal_code?: string
+  country?: string
+}
+
+// Individual with message summary for UI
+export interface IndividualWithMessages {
+  id: string
+  full_name: string
+  first_name: string
+  last_name: string
+  email?: string
+  phone?: string
+  status: 'active' | 'inactive' | 'pending'
+  last_contact?: string
+  unread_count: number
+  total_messages: number
+  avatar?: string
+}
+
 // Core message interface
 export interface Message extends BaseEntity {
   practice_id: string
@@ -70,8 +99,8 @@ export interface MessageUpdateData {
 
 // Conversation response
 export interface ConversationResponse {
-  customer_id: string
-  customer_name: string
+  individual_id: string
+  individual_name: string
   messages: Message[]
   total_count: number
 }
@@ -131,7 +160,7 @@ export interface TwilioParticipantsResponse {
   status_code?: number
 }
 
-// Customer with message summary for UI
+// Customer with message summary for UI (DEPRECATED - use IndividualWithMessages)
 export interface CustomerWithMessages {
   id: string
   name: string

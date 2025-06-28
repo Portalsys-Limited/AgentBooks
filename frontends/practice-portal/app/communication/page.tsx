@@ -37,13 +37,13 @@ import {
   MessageType,
   MessageStatus,
   MessageSendData,
-  CustomerWithMessages,
+  IndividualWithMessages,
   ConversationResponse
 } from '../../lib/messages'
 import {
   sendMessage,
-  getCustomerMessages,
-  getCustomersWithMessageSummary,
+  getIndividualMessages,
+  getIndividualsWithMessageSummary,
   markMessageAsRead,
   getMessagingStats,
   getTwilioSandboxQR,
@@ -63,8 +63,8 @@ export default function CommunicationPage() {
 
 function CommunicationContent() {
   // State management
-  const [customers, setCustomers] = useState<CustomerWithMessages[]>([])
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithMessages | null>(null)
+  const [individuals, setIndividuals] = useState<IndividualWithMessages[]>([])
+  const [selectedIndividual, setSelectedIndividual] = useState<IndividualWithMessages | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [messageType, setMessageType] = useState<MessageType>(MessageType.WHATSAPP)
@@ -85,7 +85,7 @@ function CommunicationContent() {
 
   // Load initial data
   useEffect(() => {
-    loadCustomers()
+    loadIndividuals()
     loadStats()
     loadAnalytics()
     checkTwilioStatus()
@@ -96,49 +96,49 @@ function CommunicationContent() {
     scrollToBottom()
   }, [messages])
 
-  // Focus input when customer is selected
+  // Focus input when individual is selected
   useEffect(() => {
-    if (selectedCustomer && inputRef.current) {
+    if (selectedIndividual && inputRef.current) {
       inputRef.current.focus()
     }
-  }, [selectedCustomer])
+  }, [selectedIndividual])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const loadCustomers = async () => {
+  const loadIndividuals = async () => {
     try {
       setLoading(true)
       setError(null)
-      console.log('Loading customers with message data...')
+      console.log('Loading individuals with message data...')
       
-      const customersData = await getCustomersWithMessageSummary()
-      console.log('Loaded customers:', customersData)
+      const individualsData = await getIndividualsWithMessageSummary()
+      console.log('Loaded individuals:', individualsData)
       
-      setCustomers(customersData)
+      setIndividuals(individualsData)
       
-      // Auto-select the first customer with messages, or just the first customer
-      if (customersData.length > 0 && !selectedCustomer) {
-        const customerWithMessages = customersData.find(c => c.total_messages > 0) || customersData[0]
-        console.log('Auto-selecting customer:', customerWithMessages)
-        handleCustomerSelect(customerWithMessages)
+      // Auto-select the first individual with messages, or just the first individual
+      if (individualsData.length > 0 && !selectedIndividual) {
+        const individualWithMessages = individualsData.find(i => i.total_messages > 0) || individualsData[0]
+        console.log('Auto-selecting individual:', individualWithMessages)
+        handleIndividualSelect(individualWithMessages)
       }
     } catch (err) {
-      console.error('Error loading customers:', err)
-      setError('Failed to load customers. Please try again.')
+      console.error('Error loading individuals:', err)
+      setError('Failed to load individuals. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const loadMessages = async (customerId: string) => {
+  const loadMessages = async (individualId: string) => {
     try {
       setLoadingMessages(true)
       setError(null)
-      console.log('Loading messages for customer:', customerId)
+      console.log('Loading messages for individual:', individualId)
       
-      const conversation = await getCustomerMessages(customerId)
+      const conversation = await getIndividualMessages(individualId)
       console.log('Loaded conversation:', conversation)
       
       setMessages(conversation.messages || [])
@@ -158,18 +158,18 @@ function CommunicationContent() {
           }
         }
         
-        // Update the customer's unread count in the list
-        setCustomers(prev => 
-          prev.map(c => 
-            c.id === customerId 
-              ? { ...c, unread_count: 0 }
-              : c
+        // Update the individual's unread count in the list
+        setIndividuals(prev => 
+          prev.map(i => 
+            i.id === individualId 
+              ? { ...i, unread_count: 0 }
+              : i
           )
         )
       }
     } catch (err) {
       console.error('Error loading messages:', err)
-      setError('Failed to load messages for this customer.')
+      setError('Failed to load messages for this individual.')
       setMessages([])
     } finally {
       setLoadingMessages(false)
@@ -203,22 +203,22 @@ function CommunicationContent() {
     }
   }
 
-  const handleCustomerSelect = (customer: CustomerWithMessages) => {
-    console.log('Selecting customer:', customer)
-    setSelectedCustomer(customer)
+  const handleIndividualSelect = (individual: IndividualWithMessages) => {
+    console.log('Selecting individual:', individual)
+    setSelectedIndividual(individual)
     setError(null)
-    loadMessages(customer.id)
+    loadMessages(individual.id)
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedCustomer || sendingMessage) return
+    if (!newMessage.trim() || !selectedIndividual || sendingMessage) return
 
     // Validate phone number if sending WhatsApp
-    if (messageType === MessageType.WHATSAPP && selectedCustomer.phone) {
+    if (messageType === MessageType.WHATSAPP && selectedIndividual.phone) {
       try {
-        const validation = await validatePhoneNumber(selectedCustomer.phone)
+        const validation = await validatePhoneNumber(selectedIndividual.phone)
         if (!validation.data.is_valid) {
-          setError(`Invalid phone number format: ${selectedCustomer.phone}`)
+          setError(`Invalid phone number format: ${selectedIndividual.phone}`)
           return
         }
       } catch (err) {
@@ -229,11 +229,11 @@ function CommunicationContent() {
     }
 
     const messageData: MessageSendData = {
-      customer_id: selectedCustomer.id,
+      customer_id: selectedIndividual.id, // Backend still expects customer_id for individual
       message_type: messageType,
       content: newMessage.trim(),
-      phone_number: messageType === MessageType.WHATSAPP ? selectedCustomer.phone : undefined,
-      email_address: messageType === MessageType.EMAIL ? selectedCustomer.email : undefined
+      phone_number: messageType === MessageType.WHATSAPP ? selectedIndividual.phone : undefined,
+      email_address: messageType === MessageType.EMAIL ? selectedIndividual.email : undefined
     }
 
     try {
@@ -249,16 +249,16 @@ function CommunicationContent() {
         setMessages(prev => [...prev, response.data!])
         setNewMessage('')
         
-        // Update customer's last contact time and message count
-        setCustomers(prev => 
-          prev.map(c => 
-            c.id === selectedCustomer.id 
+        // Update individual's last contact time and message count
+        setIndividuals(prev => 
+          prev.map(i => 
+            i.id === selectedIndividual.id 
               ? { 
-                  ...c, 
+                  ...i, 
                   last_contact: new Date().toISOString(),
-                  total_messages: c.total_messages + 1
+                  total_messages: i.total_messages + 1
                 }
-              : c
+              : i
           )
         )
 
@@ -323,9 +323,9 @@ function CommunicationContent() {
     }
   }
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredIndividuals = individuals.filter(individual =>
+    individual.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    individual.email?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   if (loading) {
@@ -341,7 +341,7 @@ function CommunicationContent() {
 
   return (
     <div className="h-full flex bg-gray-50">
-      {/* Sidebar - Customer List */}
+      {/* Sidebar - Individual List */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
@@ -371,7 +371,7 @@ function CommunicationContent() {
                 )}
               </button>
               <button
-                onClick={loadCustomers}
+                onClick={loadIndividuals}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
                 title="Refresh"
               >
@@ -385,7 +385,7 @@ function CommunicationContent() {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search customers..."
+              placeholder="Search individuals..."
               className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -424,33 +424,33 @@ function CommunicationContent() {
           )}
         </div>
 
-        {/* Customer List */}
+        {/* Individual List */}
         <div className="flex-1 overflow-y-auto">
-          {filteredCustomers.length === 0 ? (
+          {filteredIndividuals.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               <UserCircleIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-              <p>No customers found</p>
+              <p>No individuals found</p>
               <p className="text-xs mt-1">
-                {customers.length === 0 ? 'Try refreshing or check your customer data' : 'Try adjusting your search'}
+                {individuals.length === 0 ? 'Try refreshing or check your individual data' : 'Try adjusting your search'}
               </p>
             </div>
           ) : (
-            filteredCustomers.map((customer) => (
+            filteredIndividuals.map((individual) => (
               <div
-                key={customer.id}
+                key={individual.id}
                 className={`p-4 cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                  selectedCustomer?.id === customer.id ? 'bg-blue-50 border-blue-200' : ''
+                  selectedIndividual?.id === individual.id ? 'bg-blue-50 border-blue-200' : ''
                 }`}
-                onClick={() => handleCustomerSelect(customer)}
+                onClick={() => handleIndividualSelect(individual)}
               >
                 <div className="flex items-start space-x-3">
                   <div className="relative">
                     <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                      {customer.avatar || customer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      {individual.avatar || individual.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
                     </div>
-                    {customer.unread_count > 0 && (
+                    {individual.unread_count > 0 && (
                       <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {customer.unread_count}
+                        {individual.unread_count}
                       </div>
                     )}
                   </div>
@@ -458,34 +458,34 @@ function CommunicationContent() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-gray-900 truncate">
-                        {customer.name}
+                        {individual.full_name}
                       </p>
-                      {customer.last_contact && (
+                      {individual.last_contact && (
                         <span className="text-xs text-gray-500">
-                          {formatTime(customer.last_contact)}
+                          {formatTime(individual.last_contact)}
                         </span>
                       )}
                     </div>
                     
                     <div className="flex items-center space-x-2 mt-1">
-                      {customer.phone && (
+                      {individual.phone && (
                         <PhoneIcon className="h-3 w-3 text-gray-400" />
                       )}
-                      {customer.email && (
+                      {individual.email && (
                         <EnvelopeIcon className="h-3 w-3 text-gray-400" />
                       )}
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        customer.status === 'active' 
+                        individual.status === 'active' 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {customer.status}
+                        {individual.status}
                       </span>
                     </div>
                     
-                    {customer.total_messages > 0 && (
+                    {individual.total_messages > 0 && (
                       <p className="text-xs text-gray-500 mt-1">
-                        {customer.total_messages} messages
+                        {individual.total_messages} messages
                       </p>
                     )}
                   </div>
@@ -498,30 +498,30 @@ function CommunicationContent() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {selectedCustomer ? (
+        {selectedIndividual ? (
           <>
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
-                    {selectedCustomer.avatar || selectedCustomer.name.split(' ').map(n => n[0]).join('')}
+                    {selectedIndividual.avatar || selectedIndividual.full_name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {selectedCustomer.name}
+                      {selectedIndividual.full_name}
                     </h2>
                     <div className="flex items-center space-x-3 text-sm text-gray-500">
-                      {selectedCustomer.phone && (
+                      {selectedIndividual.phone && (
                         <span className="flex items-center">
                           <PhoneIcon className="h-4 w-4 mr-1" />
-                          {selectedCustomer.phone}
+                          {selectedIndividual.phone}
                         </span>
                       )}
-                      {selectedCustomer.email && (
+                      {selectedIndividual.email && (
                         <span className="flex items-center">
                           <EnvelopeIcon className="h-4 w-4 mr-1" />
-                          {selectedCustomer.email}
+                          {selectedIndividual.email}
                         </span>
                       )}
                     </div>
@@ -656,17 +656,17 @@ function CommunicationContent() {
             <div className="text-center">
               <ChatBubbleLeftIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Select a customer
+                Select an individual
               </h3>
               <p className="text-gray-500 mb-4">
-                Choose a customer from the sidebar to start messaging
+                Choose an individual from the sidebar to start messaging
               </p>
-              {customers.length === 0 && (
+              {individuals.length === 0 && (
                 <button
-                  onClick={loadCustomers}
+                  onClick={loadIndividuals}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
                 >
-                  Refresh Customer List
+                  Refresh Individual List
                 </button>
               )}
             </div>

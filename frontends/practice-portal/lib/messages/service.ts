@@ -17,22 +17,34 @@ import {
   TwilioSandboxResponse,
   TwilioParticipantsResponse,
   MessageType,
-  CustomerWithMessages
+  CustomerWithMessages,
+  Individual,
+  IndividualWithMessages
 } from './types'
 import { getCustomers } from '../customers/service'
 
 /**
+ * Get all individuals for the current practice
+ * Backend: GET /individuals/
+ */
+export async function getIndividuals(): Promise<Individual[]> {
+  return api.get<Individual[]>('/individuals/')
+}
+
+/**
  * Send a message (WhatsApp or email)
+ * Backend: POST /messages/send
  */
 export async function sendMessage(data: MessageSendData): Promise<MessageResponse> {
   return api.post<MessageResponse>('/messages/send', data)
 }
 
 /**
- * Get all messages for a specific customer
+ * Get all messages for a specific individual (customer)
+ * Backend: GET /messages/individual/{individual_id}
  */
-export async function getCustomerMessages(
-  customerId: string,
+export async function getIndividualMessages(
+  individualId: string,
   messageType?: MessageType,
   limit: number = 50,
   offset: number = 0
@@ -46,18 +58,42 @@ export async function getCustomerMessages(
     params.append('message_type', messageType)
   }
   
-  return api.get<ConversationResponse>(`/messages/customer/${customerId}?${params}`)
+  return api.get<ConversationResponse>(`/messages/individual/${individualId}?${params}`)
 }
 
 /**
- * Get WhatsApp messages for a specific customer
+ * Get WhatsApp messages for a specific individual (customer)
+ * Backend: GET /messages/individual/{individual_id}/whatsapp
+ */
+export async function getIndividualWhatsAppMessages(
+  individualId: string,
+  limit: number = 50,
+  offset: number = 0
+): Promise<MessageListItem[]> {
+  return api.get<MessageListItem[]>(`/messages/individual/${individualId}/whatsapp?limit=${limit}&offset=${offset}`)
+}
+
+/**
+ * Get all messages for a specific customer (alias for getIndividualMessages for backward compatibility)
+ */
+export async function getCustomerMessages(
+  customerId: string,
+  messageType?: MessageType,
+  limit: number = 50,
+  offset: number = 0
+): Promise<ConversationResponse> {
+  return getIndividualMessages(customerId, messageType, limit, offset)
+}
+
+/**
+ * Get WhatsApp messages for a specific customer (alias for getIndividualWhatsAppMessages for backward compatibility)
  */
 export async function getCustomerWhatsAppMessages(
   customerId: string,
   limit: number = 50,
   offset: number = 0
 ): Promise<MessageListItem[]> {
-  return api.get<MessageListItem[]>(`/messages/customer/${customerId}/whatsapp?limit=${limit}&offset=${offset}`)
+  return getIndividualWhatsAppMessages(customerId, limit, offset)
 }
 
 /**
@@ -117,7 +153,99 @@ export async function markMessageAsRead(messageId: string): Promise<Message> {
 }
 
 /**
- * Get customers with message summary for the communication page
+ * Get individuals with message summary for the communication page
+ * This function fetches all individuals and enriches them with message activity data
+ */
+export async function getIndividualsWithMessageSummary(): Promise<IndividualWithMessages[]> {
+  try {
+    // Get all individuals first
+    const individuals = await getIndividuals()
+    console.log('Loaded individuals:', individuals)
+    
+    // Fetch message data for each individual
+    const individualsWithMessages: IndividualWithMessages[] = await Promise.all(
+      individuals.map(async (individual) => {
+        try {
+          // Get recent messages for this individual to determine activity
+          const conversation = await getIndividualMessages(individual.id, undefined, 10, 0)
+          
+          // Count unread messages (incoming messages without read_at)
+          const unreadCount = conversation.messages.filter(
+            msg => msg.is_incoming && !msg.read_at
+          ).length
+          
+          // Get the most recent message timestamp
+          const lastMessage = conversation.messages[0] // messages are ordered by most recent first
+          const lastContact = lastMessage ? lastMessage.created_at : undefined
+          
+          return {
+            id: individual.id,
+            full_name: individual.full_name,
+            first_name: individual.first_name,
+            last_name: individual.last_name,
+            email: individual.email,
+            phone: individual.phone,
+            status: 'active' as const,
+            last_contact: lastContact,
+            unread_count: unreadCount,
+            total_messages: conversation.total_count,
+            avatar: individual.full_name.split(' ').map(n => n[0]).join('').toUpperCase()
+          }
+        } catch (error) {
+          // If we can't get messages for this individual, still include them with zero counts
+          console.warn(`Could not load messages for individual ${individual.id}:`, error)
+          return {
+            id: individual.id,
+            full_name: individual.full_name,
+            first_name: individual.first_name,
+            last_name: individual.last_name,
+            email: individual.email,
+            phone: individual.phone,
+            status: 'active' as const,
+            unread_count: 0,
+            total_messages: 0,
+            avatar: individual.full_name.split(' ').map(n => n[0]).join('').toUpperCase()
+          }
+        }
+      })
+    )
+    
+    // Sort individuals by message activity:
+    // 1. Individuals with unread messages first
+    // 2. Then by most recent contact
+    // 3. Then by total message count
+    // 4. Finally alphabetically by name
+    const sortedIndividuals = individualsWithMessages.sort((a, b) => {
+      // Unread messages take priority
+      if (a.unread_count !== b.unread_count) {
+        return b.unread_count - a.unread_count
+      }
+      
+      // Then sort by most recent contact
+      if (a.last_contact && b.last_contact) {
+        return new Date(b.last_contact).getTime() - new Date(a.last_contact).getTime()
+      }
+      if (a.last_contact && !b.last_contact) return -1
+      if (!a.last_contact && b.last_contact) return 1
+      
+      // Then by total message count
+      if (a.total_messages !== b.total_messages) {
+        return b.total_messages - a.total_messages
+      }
+      
+      // Finally alphabetically
+      return a.full_name.localeCompare(b.full_name)
+    })
+    
+    return sortedIndividuals
+  } catch (error) {
+    console.error('Error fetching individuals with message summary:', error)
+    return []
+  }
+}
+
+/**
+ * Get customers with message summary for the communication page (DEPRECATED - use getIndividualsWithMessageSummary)
  * This function fetches all customers and enriches them with message activity data
  */
 export async function getCustomersWithMessageSummary(): Promise<CustomerWithMessages[]> {
@@ -125,12 +253,12 @@ export async function getCustomersWithMessageSummary(): Promise<CustomerWithMess
     // Get all customers first
     const customers = await getCustomers()
     
-    // Fetch message data for each customer
+    // Fetch message data for each customer (treating customers as individuals)
     const customersWithMessages: CustomerWithMessages[] = await Promise.all(
       customers.map(async (customer) => {
         try {
-          // Get recent messages for this customer to determine activity
-          const conversation = await getCustomerMessages(customer.id, undefined, 10, 0)
+          // Get recent messages for this customer using the individual endpoint
+          const conversation = await getIndividualMessages(customer.id, undefined, 10, 0)
           
           // Count unread messages (incoming messages without read_at)
           const unreadCount = conversation.messages.filter(
