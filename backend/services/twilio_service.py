@@ -11,6 +11,8 @@ class TwilioService:
     def __init__(self):
         self.account_sid = os.getenv("TWILIO_ACCOUNT_SID")
         self.auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+        self.from_whatsapp_number = os.getenv("FROM_WHATSAPP_NUMBER")
+
         
         if not all([self.account_sid, self.auth_token]):
             raise ValueError("Missing required Twilio configuration. Please set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables.")
