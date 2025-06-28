@@ -1,7 +1,7 @@
 from pydantic import BaseModel, UUID4
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from db.models.message import MessageType, MessageDirection, MessageStatus
+from db.models.message import MessageType, MessageDirection, MessageStatus, MessageSender
 
 
 # Message schemas
@@ -16,6 +16,7 @@ class MessageCreate(MessageBase):
     user_id: Optional[UUID4] = None
     direction: MessageDirection
     status: MessageStatus = MessageStatus.pending
+    sender: MessageSender = MessageSender.human
     from_address: str
     to_address: str
     twilio_sid: Optional[str] = None
@@ -26,6 +27,7 @@ class MessageSend(BaseModel):
     individual_id: UUID4
     message_type: MessageType
     body: str
+    sender: MessageSender = MessageSender.human
 
 
 class MessageUpdate(BaseModel):
@@ -41,6 +43,7 @@ class Message(MessageBase):
     user_id: Optional[UUID4] = None
     direction: MessageDirection
     status: MessageStatus
+    sender: MessageSender
     from_address: str
     to_address: str
     twilio_sid: Optional[str] = None
@@ -60,6 +63,7 @@ class MessageListItem(BaseModel):
     message_type: MessageType
     direction: MessageDirection
     status: MessageStatus
+    sender: MessageSender
     body: str
     created_at: datetime
     individual_name: Optional[str] = None

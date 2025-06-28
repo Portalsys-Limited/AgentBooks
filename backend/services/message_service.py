@@ -10,7 +10,7 @@ import mimetypes
 from pathlib import Path
 
 from db.models import Document, Client
-from db.models.message import Message, MessageType, MessageDirection, MessageStatus
+from db.models.message import Message, MessageType, MessageDirection, MessageStatus, MessageSender
 from db.models.individuals import Individual
 from db.models.practice import Practice
 from db.models.documents import Document, DocumentType, DocumentSource, DocumentAgentState
@@ -210,6 +210,8 @@ class MessageService:
             message_create = MessageCreate(
                 message_type=MessageType.whatsapp,
                 direction=MessageDirection.outgoing,
+                status=MessageStatus.pending,
+                sender=message_data.sender,  # Use the sender from message_data
                 body=message_data.body,
                 individual_id=message_data.individual_id,
                 practice_id=practice_id,
@@ -300,13 +302,61 @@ class MessageService:
             clean_to_phone = to_phone.replace("whatsapp:", "")
             
             print(f"📱 Processing WhatsApp message from {clean_from_phone} to {clean_to_phone}")
-            
-            # Find individual and practice
+
+            # Check if this is a status update
+            if message_status in ['sent', 'delivered', 'read', 'failed']:
+                # For status updates, find the message by SID and update its status
+                message_result = await db.execute(
+                    select(Message).where(Message.twilio_sid == message_sid)
+                )
+                existing_message = message_result.scalar_one_or_none()
+                
+                if existing_message:
+                    print(f"📝 Updating message status to {message_status}")
+                    existing_message.status = MessageStatus[message_status]
+                    if message_status == 'read':
+                        existing_message.read_at = datetime.utcnow()
+                    elif message_status == 'delivered':
+                        existing_message.delivered_at = datetime.utcnow()
+                    
+                    existing_message.message_metadata = {
+                        **(existing_message.message_metadata or {}),
+                        f"status_update_{message_status}": {
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "webhook_data": webhook_data
+                        }
+                    }
+                    
+                    await db.commit()
+                    return {"status": "success", "message": f"Message status updated to {message_status}"}
+                else:
+                    print(f"⚠️ No message found with SID {message_sid} for status update")
+                    return {"status": "warning", "message": "Message not found for status update"}
+
+            # If not a status update, this is a new message
+            # Find individual and practice (for new messages, From is the sender)
             individual_result = await db.execute(select(Individual).where(Individual.primary_mobile == clean_from_phone))
             individual = individual_result.scalar_one_or_none()
             
-            practice_result = await db.execute(select(Practice).where(Practice.whatsapp_number == clean_to_phone))
-            practice = practice_result.scalar_one_or_none()
+            if not individual:
+                # Try finding practice first as this might be a message FROM the practice
+                practice_result = await db.execute(select(Practice).where(Practice.whatsapp_number == clean_from_phone))
+                practice = practice_result.scalar_one_or_none()
+                
+                if practice:
+                    # If the message is from the practice, then the recipient should be the individual
+                    individual_result = await db.execute(select(Individual).where(Individual.primary_mobile == clean_to_phone))
+                    individual = individual_result.scalar_one_or_none()
+                else:
+                    # Try one more time with the to_phone as some webhooks might have reversed numbers
+                    individual_result = await db.execute(select(Individual).where(Individual.primary_mobile == clean_to_phone))
+                    individual = individual_result.scalar_one_or_none()
+                    practice_result = await db.execute(select(Practice).where(Practice.whatsapp_number == clean_from_phone))
+                    practice = practice_result.scalar_one_or_none()
+            else:
+                # If we found the individual, look for the practice they're messaging
+                practice_result = await db.execute(select(Practice).where(Practice.whatsapp_number == clean_to_phone))
+                practice = practice_result.scalar_one_or_none()
 
             if not individual or not practice:
                 error_message = f"No individual or practice found for numbers: From={clean_from_phone}, To={clean_to_phone}"
@@ -330,6 +380,7 @@ class MessageService:
                 message_type=MessageType.whatsapp,
                 direction=MessageDirection.incoming,
                 status=MessageStatus.delivered,
+                sender=MessageSender.client,  # Set sender as client for incoming messages
                 body=body,
                 individual_id=individual.id,
                 practice_id=practice.id,
@@ -426,6 +477,7 @@ class MessageService:
                 message_type=MessageType.whatsapp,
                 direction=MessageDirection.incoming,
                 status=MessageStatus.delivered,
+                sender=MessageSender.client,  # Set sender as client for incoming messages
                 body=body,
                 individual_id=individual.id,
                 practice_id=practice_id,

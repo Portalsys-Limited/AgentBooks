@@ -22,6 +22,13 @@ class MessageStatus(str, enum.Enum):
     read = "read"
     failed = "failed"
 
+class MessageSender(str, enum.Enum):
+    human = "human"
+    ai = "ai"
+    client = "client"  # For messages received from clients/individuals
+    system = "system"  # For system messages
+    
+
 class Message(Base):
     __tablename__ = "messages"
 
@@ -33,6 +40,7 @@ class Message(Base):
     message_type = Column(Enum(MessageType), nullable=False)
     direction = Column(Enum(MessageDirection), nullable=False)
     status = Column(Enum(MessageStatus), nullable=False, default=MessageStatus.pending)
+    sender = Column(Enum(MessageSender), nullable=False, default=MessageSender.human)
     
     body = Column(Text, nullable=False)
     from_address = Column(String, nullable=False)  # Phone number or email
@@ -54,4 +62,4 @@ class Message(Base):
     documents = relationship("Document", back_populates="message")
 
     def __repr__(self):
-        return f"<Message(id={self.id}, type={self.message_type}, direction={self.direction}, status={self.status})>" 
+        return f"<Message(id={self.id}, type={self.message_type}, direction={self.direction}, status={self.status}, sender={self.sender})>" 
