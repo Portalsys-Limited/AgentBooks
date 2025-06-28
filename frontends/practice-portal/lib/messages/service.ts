@@ -19,7 +19,8 @@ import {
   MessageType,
   CustomerWithMessages,
   Individual,
-  IndividualWithMessages
+  IndividualWithMessages,
+  MessageDirection
 } from './types'
 import { getCustomers } from '../customers/service'
 
@@ -171,7 +172,7 @@ export async function getIndividualsWithMessageSummary(): Promise<IndividualWith
           
           // Count unread messages (incoming messages without read_at)
           const unreadCount = conversation.messages.filter(
-            msg => msg.is_incoming && !msg.read_at
+            msg => msg.direction === MessageDirection.INCOMING && !msg.read_at
           ).length
           
           // Get the most recent message timestamp
@@ -262,7 +263,7 @@ export async function getCustomersWithMessageSummary(): Promise<CustomerWithMess
           
           // Count unread messages (incoming messages without read_at)
           const unreadCount = conversation.messages.filter(
-            msg => msg.is_incoming && !msg.read_at
+            msg => msg.direction === MessageDirection.INCOMING && !msg.read_at
           ).length
           
           // Get the most recent message timestamp

@@ -1,7 +1,7 @@
 'use client'
 
-import * as React from 'react'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import type { ReactNode } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { 
   ChatBubbleLeftIcon, 
@@ -38,7 +38,8 @@ import {
   MessageStatus,
   MessageSendData,
   IndividualWithMessages,
-  ConversationResponse
+  ConversationResponse,
+  MessageDirection
 } from '../../lib/messages'
 import {
   sendMessage,
@@ -145,7 +146,7 @@ function CommunicationContent() {
       
       // Mark unread messages as read
       const unreadMessages = conversation.messages?.filter(
-        msg => msg.is_incoming && !msg.read_at
+        msg => msg.direction === MessageDirection.INCOMING && !msg.read_at
       ) || []
       
       if (unreadMessages.length > 0) {
@@ -229,11 +230,9 @@ function CommunicationContent() {
     }
 
     const messageData: MessageSendData = {
-      customer_id: selectedIndividual.id, // Backend still expects customer_id for individual
+      individual_id: selectedIndividual.id,
       message_type: messageType,
-      content: newMessage.trim(),
-      phone_number: messageType === MessageType.WHATSAPP ? selectedIndividual.phone : undefined,
-      email_address: messageType === MessageType.EMAIL ? selectedIndividual.email : undefined
+      body: newMessage.trim()
     }
 
     try {
@@ -564,18 +563,18 @@ function CommunicationContent() {
                 messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.is_incoming ? 'justify-start' : 'justify-end'}`}
+                    className={`flex ${message.direction === MessageDirection.INCOMING ? 'justify-start' : 'justify-end'}`}
                   >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.is_incoming
+                        message.direction === MessageDirection.INCOMING
                           ? 'bg-gray-100 text-gray-900'
                           : 'bg-blue-600 text-white'
                       }`}
                     >
                       <div className="flex items-start justify-between">
                         <p className="text-sm whitespace-pre-wrap break-words">
-                          {message.content}
+                          {message.body}
                         </p>
                         {message.message_type === MessageType.WHATSAPP && (
                           <ChatBubbleLeftIcon className="h-3 w-3 ml-2 mt-1 flex-shrink-0 opacity-50" />
@@ -587,12 +586,12 @@ function CommunicationContent() {
                       
                       <div className="flex items-center justify-between mt-2">
                         <span className={`text-xs ${
-                          message.is_incoming ? 'text-gray-500' : 'text-blue-100'
+                          message.direction === MessageDirection.INCOMING ? 'text-gray-500' : 'text-blue-100'
                         }`}>
-                          {formatTime(message.created_at!)}
+                          {formatTime(message.created_at)}
                         </span>
                         
-                        {!message.is_incoming && (
+                        {message.direction === MessageDirection.OUTGOING && (
                           <div className="ml-2">
                             {getStatusIcon(message.status)}
                           </div>
