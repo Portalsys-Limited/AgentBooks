@@ -73,6 +73,16 @@ class Individual(Base):
     incomes = relationship("Income", back_populates="individual", cascade="all, delete-orphan")
     properties = relationship("Property", back_populates="individual", cascade="all, delete-orphan")
     
+    # Individual relationships
+    relationships_from = relationship("IndividualRelationship", 
+                                   foreign_keys="IndividualRelationship.from_individual_id",
+                                   back_populates="from_individual",
+                                   cascade="all, delete-orphan")
+    relationships_to = relationship("IndividualRelationship",
+                                 foreign_keys="IndividualRelationship.to_individual_id",
+                                 back_populates="to_individual",
+                                 cascade="all, delete-orphan")
+    
     def __repr__(self):
         return f"<Individual(id={self.id}, name='{self.first_name} {self.last_name}', email='{self.email}')>"
     
@@ -86,3 +96,8 @@ class Individual(Base):
     def is_deceased(self):
         """Check if the individual is deceased"""
         return self.deceased_date is not None
+    
+    @property
+    def all_relationships(self):
+        """Get all relationships (both from and to) for this individual"""
+        return self.relationships_from + self.relationships_to
