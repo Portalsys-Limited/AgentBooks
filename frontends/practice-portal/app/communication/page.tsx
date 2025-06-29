@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import AppLayout from '../../components/layout/AppLayout'
 import { 
   ChatBubbleLeftIcon, 
@@ -33,7 +34,7 @@ import {
   BellIcon as BellIconSolid 
 } from '@heroicons/react/24/solid'
 import {
-  Message,
+  MessageListItem,
   MessageType,
   MessageStatus,
   MessageSendData,
@@ -63,10 +64,15 @@ export default function CommunicationPage() {
 }
 
 function CommunicationContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const individualId = searchParams.get('individual_id')
+  const individualName = searchParams.get('individual_name')
+  
   // State management
   const [individuals, setIndividuals] = useState<IndividualWithMessages[]>([])
   const [selectedIndividual, setSelectedIndividual] = useState<IndividualWithMessages | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<MessageListItem[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [messageType, setMessageType] = useState<MessageType>(MessageType.WHATSAPP)
   const [searchTerm, setSearchTerm] = useState('')
@@ -79,6 +85,7 @@ function CommunicationContent() {
   const [stats, setStats] = useState<any>(null)
   const [analytics, setAnalytics] = useState<any>(null)
   const [twilioStatus, setTwilioStatus] = useState<any>(null)
+  const [filteredBy, setFilteredBy] = useState<{ type: 'individual', name: string } | null>(null)
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -90,7 +97,28 @@ function CommunicationContent() {
     loadStats()
     loadAnalytics()
     checkTwilioStatus()
-  }, [])
+    
+    // Set filter if individual is specified in URL
+    if (individualId && individualName) {
+      setFilteredBy({ type: 'individual', name: individualName })
+    }
+  }, [individualId, individualName])
+
+  // Auto-select individual if specified in URL
+  useEffect(() => {
+    if (individuals.length > 0 && !selectedIndividual) {
+      if (individualId) {
+        const target = individuals.find(i => i.id === individualId)
+        if (target) {
+          console.log('Auto-selecting individual from URL:', target)
+          handleIndividualSelect(target)
+        } else {
+          console.warn('Individual not found:', individualId)
+          setError(`Individual not found: ${individualName || individualId}`)
+        }
+      }
+    }
+  }, [individualId, individuals, selectedIndividual, individualName])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -119,8 +147,8 @@ function CommunicationContent() {
       
       setIndividuals(individualsData)
       
-      // Auto-select the first individual with messages, or just the first individual
-      if (individualsData.length > 0 && !selectedIndividual) {
+      // If filtering, don't auto-select the first individual
+      if (!individualId && individualsData.length > 0 && !selectedIndividual) {
         const individualWithMessages = individualsData.find(i => i.total_messages > 0) || individualsData[0]
         console.log('Auto-selecting individual:', individualWithMessages)
         handleIndividualSelect(individualWithMessages)
@@ -244,8 +272,22 @@ function CommunicationContent() {
       console.log('Message send response:', response)
       
       if (response.success && response.data) {
+        // Convert the full Message to MessageListItem for display
+        const messageListItem: MessageListItem = {
+          id: response.data.id,
+          message_type: response.data.message_type,
+          direction: response.data.direction,
+          status: response.data.status,
+          body: response.data.body,
+          created_at: response.data.created_at,
+          individual_id: response.data.individual_id,
+          read_at: response.data.read_at,
+          delivered_at: response.data.delivered_at,
+          updated_at: response.data.updated_at
+        }
+        
         // Add the new message to the current conversation
-        setMessages(prev => [...prev, response.data!])
+        setMessages(prev => [...prev, messageListItem])
         setNewMessage('')
         
         // Update individual's last contact time and message count
@@ -322,10 +364,24 @@ function CommunicationContent() {
     }
   }
 
-  const filteredIndividuals = individuals.filter(individual =>
-    individual.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    individual.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const clearFilter = () => {
+    setFilteredBy(null)
+    // Remove URL parameters
+    const url = new URL(window.location.href)
+    url.searchParams.delete('individual_id')
+    url.searchParams.delete('individual_name')
+    router.replace(url.pathname)
+  }
+
+  const filteredIndividuals = individuals.filter(individual => {
+    // If filtering by specific individual, only show that one
+    if (individualId && individual.id !== individualId) {
+      return false
+    }
+    // Apply search filter
+    return individual.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           individual.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  })
 
   if (loading) {
     return (
@@ -379,12 +435,33 @@ function CommunicationContent() {
             </div>
           </div>
           
+          {/* Filter Indicator */}
+          {filteredBy && (
+            <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <UserCircleIcon className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm text-blue-800 font-medium">
+                    Filtered by: Individual - {filteredBy.name}
+                  </span>
+                </div>
+                <button
+                  onClick={clearFilter}
+                  className="text-blue-600 hover:text-blue-800"
+                  title="Clear filter"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+          
           {/* Search */}
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search individuals..."
+              placeholder={filteredBy ? `Search within ${filteredBy.name}...` : "Search individuals..."}
               className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -428,10 +505,27 @@ function CommunicationContent() {
           {filteredIndividuals.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               <UserCircleIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-              <p>No individuals found</p>
-              <p className="text-xs mt-1">
-                {individuals.length === 0 ? 'Try refreshing or check your individual data' : 'Try adjusting your search'}
-              </p>
+              {filteredBy ? (
+                <>
+                  <p>Individual not found</p>
+                  <p className="text-xs mt-1">
+                    The specified individual may not have message capabilities
+                  </p>
+                  <button
+                    onClick={clearFilter}
+                    className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    View all individuals
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>No individuals found</p>
+                  <p className="text-xs mt-1">
+                    {individuals.length === 0 ? 'Try refreshing or check your individual data' : 'Try adjusting your search'}
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             filteredIndividuals.map((individual) => (

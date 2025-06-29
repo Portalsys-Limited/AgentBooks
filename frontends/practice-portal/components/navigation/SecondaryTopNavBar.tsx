@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   UserIcon,
   ClipboardDocumentListIcon,
@@ -30,6 +31,7 @@ interface CustomerProfile {
   id: string
   email: string
   status: 'Active' | 'Inactive'
+  individual_id?: string
 }
 
 interface SecondaryTopNavBarProps {
@@ -58,6 +60,17 @@ export default function SecondaryTopNavBar({
   breadcrumbs,
   customerProfile
 }: SecondaryTopNavBarProps) {
+  const router = useRouter()
+
+  const handleCommunicationClick = () => {
+    if (customerProfile) {
+      // Use individual_id if available, otherwise fall back to customer id
+      const individualId = customerProfile.individual_id || customerProfile.id
+      // Navigate to communication page with individual filter
+      router.push(`/communication?individual_id=${individualId}&individual_name=${encodeURIComponent(customerProfile.name)}`)
+    }
+  }
+
   return (
     <div className={`bg-white shadow-sm ${className}`}>
       {/* Customer Profile Section */}
@@ -85,6 +98,17 @@ export default function SecondaryTopNavBar({
                 </span>
                 <span>{customerProfile.email}</span>
               </div>
+            </div>
+
+            {/* Communication Button */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleCommunicationClick}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <ChatBubbleLeftRightIcon className="h-4 w-4 mr-1.5" />
+                Message
+              </button>
             </div>
           </div>
         </div>
@@ -157,11 +181,10 @@ export default function SecondaryTopNavBar({
   )
 }
 
-// Pre-defined tab configurations for common use cases
+// Remove communication tab from the default tabs since it's now a button
 export const CUSTOMER_TABS: SecondaryNavTab[] = [
   { id: 'information', name: 'Customer Information', icon: UserIcon },
   { id: 'tasks', name: 'Tasks', icon: ClipboardDocumentListIcon },
-  { id: 'communication', name: 'Communication', icon: ChatBubbleLeftRightIcon },
   { id: 'documents', name: 'Documents', icon: DocumentTextIcon },
   { id: 'mlr', name: 'MLR', icon: ShieldCheckIcon },
   { id: 'relationships', name: 'Relationships', icon: UsersIcon }
