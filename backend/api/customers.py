@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from typing import List, Dict
 from uuid import UUID
 import logging
 
 from config.database import get_db
-from db.models import Customer, Individual, Income, Property, CustomerClientAssociation
+from db.models import Customer, Individual, Income, Property, CustomerClientAssociation, Document
 from db.models.customer import CustomerStatus, MLRStatus
 from db.models.individual_relationship import IndividualRelationship
 from db.schemas.customer import (
@@ -371,6 +371,7 @@ async def get_customer_documents(
     current_user: UserSchema = Depends(get_current_user)
 ):
     """Get customer documents tab data"""
+    # Get customer with individual relationship
     query = select(Customer).options(
         selectinload(Customer.individual)
     ).where(Customer.id == customer_id)
@@ -381,5 +382,19 @@ async def get_customer_documents(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
-    # TODO: Add document fetching logic once implemented
-    return customer 
+    # Get all documents associated with either the customer directly or their individual
+    documents_query = select(Document).where(
+        or_(
+            Document.customer_id == customer_id,
+            Document.individual_id == customer.individual_id
+        )
+    ).order_by(Document.created_at.desc())
+    
+    documents_result = await db.execute(documents_query)
+    documents = documents_result.scalars().all()
+    
+    # Create response
+    response = CustomerDocumentsTabResponse.from_orm(customer)
+    response.documents = documents
+    
+    return response 
