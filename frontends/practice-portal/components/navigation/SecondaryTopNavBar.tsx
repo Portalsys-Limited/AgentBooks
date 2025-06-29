@@ -38,10 +38,10 @@ export default function SecondaryTopNavBar({
   className = ''
 }: SecondaryTopNavBarProps) {
   return (
-    <div className={`bg-white border-b border-gray-200 ${className}`}>
+    <div className={`bg-white shadow-sm ${className}`}>
       {/* Header Section */}
       {(title || subtitle || actions) && (
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               {title && (
