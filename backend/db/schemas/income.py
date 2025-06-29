@@ -16,7 +16,7 @@ class IncomeBase(BaseModel):
 
 # Income creation schema
 class IncomeCreateRequest(BaseModel):
-    customer_id: UUID
+    individual_id: UUID
     income_type: IncomeType
     income_amount: Decimal
     description: Optional[str] = None
@@ -32,7 +32,7 @@ class IncomeUpdateRequest(BaseModel):
 # Income response schema
 class IncomeResponse(IncomeBase):
     id: UUID
-    customer_id: UUID
+    individual_id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -43,7 +43,7 @@ class IncomeResponse(IncomeBase):
 # Income list item schema
 class IncomeListItem(BaseModel):
     id: UUID
-    customer_id: UUID
+    individual_id: UUID
     income_type: IncomeType
     income_amount: Decimal
     description: Optional[str] = None
@@ -55,7 +55,7 @@ class IncomeListItem(BaseModel):
 
 # Base schemas for backward compatibility
 class IncomeCreate(IncomeBase):
-    customer_id: UUID
+    individual_id: UUID
 
 
 class IncomeUpdate(BaseModel):
@@ -66,7 +66,7 @@ class IncomeUpdate(BaseModel):
 
 class Income(IncomeBase):
     id: UUID
-    customer_id: UUID
+    individual_id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
     

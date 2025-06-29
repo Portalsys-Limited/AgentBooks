@@ -5,11 +5,13 @@ from typing import List
 from uuid import UUID
 
 from config.database import get_db
-from db.models import Individual
+from db.models import Individual, Income, Property
 from db.schemas import (
     IndividualCreateRequest, IndividualUpdateRequest, 
     IndividualResponse, IndividualListItem
 )
+from db.schemas.income import IncomeCreateRequest, IncomeResponse
+from db.schemas.property import PropertyCreateRequest, PropertyResponse
 from db.schemas.user import User as UserSchema
 from api.users import get_current_user
 
@@ -136,4 +138,112 @@ async def delete_individual(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
     
     await db.delete(individual)
-    await db.commit() 
+    await db.commit()
+
+
+@router.get("/{individual_id}/incomes", response_model=List[IncomeResponse])
+async def get_individual_incomes(
+    individual_id: UUID,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all incomes for an individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    result = await db.execute(
+        select(Income).where(Income.individual_id == individual_id)
+    )
+    return result.scalars().all()
+
+
+@router.post("/{individual_id}/incomes", response_model=IncomeResponse, status_code=status.HTTP_201_CREATED)
+async def create_individual_income(
+    individual_id: UUID,
+    request: IncomeCreateRequest,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add income to individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    # Override individual_id from URL
+    income_data = request.dict()
+    income_data["individual_id"] = individual_id
+    
+    income = Income(**income_data)
+    db.add(income)
+    await db.commit()
+    await db.refresh(income)
+    return income
+
+
+@router.get("/{individual_id}/properties", response_model=List[PropertyResponse])
+async def get_individual_properties(
+    individual_id: UUID,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all properties for an individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    result = await db.execute(
+        select(Property).where(Property.individual_id == individual_id)
+    )
+    return result.scalars().all()
+
+
+@router.post("/{individual_id}/properties", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
+async def create_individual_property(
+    individual_id: UUID,
+    request: PropertyCreateRequest,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add property to individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    # Override individual_id from URL
+    property_data = request.dict()
+    property_data["individual_id"] = individual_id
+    
+    property_obj = Property(**property_data)
+    db.add(property_obj)
+    await db.commit()
+    await db.refresh(property_obj)
+    return property_obj 

@@ -35,7 +35,7 @@ class PropertyBase(BaseModel):
 
 # Property creation schema
 class PropertyCreateRequest(BaseModel):
-    customer_id: UUID
+    individual_id: UUID
     property_name: str
     property_type: PropertyType
     property_status: PropertyStatus = PropertyStatus.owned
@@ -89,7 +89,7 @@ class PropertyUpdateRequest(BaseModel):
 # Property response schema
 class PropertyResponse(PropertyBase):
     id: UUID
-    customer_id: UUID
+    individual_id: UUID
     full_address: str
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -101,7 +101,7 @@ class PropertyResponse(PropertyBase):
 # Property list item schema
 class PropertyListItem(BaseModel):
     id: UUID
-    customer_id: UUID
+    individual_id: UUID
     property_name: str
     property_type: PropertyType
     property_status: PropertyStatus
@@ -116,7 +116,7 @@ class PropertyListItem(BaseModel):
 
 # Base schemas for backward compatibility
 class PropertyCreate(PropertyBase):
-    customer_id: UUID
+    individual_id: UUID
 
 
 class PropertyUpdate(BaseModel):
@@ -146,7 +146,7 @@ class PropertyUpdate(BaseModel):
 
 class Property(PropertyBase):
     id: UUID
-    customer_id: UUID
+    individual_id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
     
