@@ -59,7 +59,13 @@ class MessageService:
                 
                 # Assign client to document
                 document_to_assign.client_id = client_id
-                document_to_assign.agent_state = DocumentAgentState.processed
+                
+                # If document is an invoice, keep it in processing state for invoice handling
+                if document_to_assign.document_category == "invoice":
+                    document_to_assign.agent_state = DocumentAgentState.processing
+                else:
+                    document_to_assign.agent_state = DocumentAgentState.processed
+                    
                 document_to_assign.processed_at = datetime.utcnow()
                 db.add(document_to_assign)
                 await db.commit()
@@ -73,6 +79,13 @@ class MessageService:
                     from_whatsapp_number=practice.whatsapp_number,
                     message_body=confirmation_body
                 )
+                
+                # If this is an invoice, trigger invoice processing via Celery task
+                if document_to_assign.document_category == "invoice":
+                    from workers.tasks.document_processor import process_document_workflow
+                    process_document_workflow.delay(str(document_id))
+                    print(f"🔄 Triggered document processing workflow for invoice {document_id}")
+
                 return True # Indicates the reply was handled
 
             except Exception as e:

@@ -1,13 +1,36 @@
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from datetime import date, datetime
 from uuid import UUID
 
 from db.models.customer import MLRStatus, CustomerStatus
 from db.models.documents import DocumentType, DocumentSource, DocumentAgentState
-from db.schemas.customer import IndividualSummary, UserSummary, PracticeInfo
+from db.schemas.income import IncomeResponse
 from db.schemas.customer_client_association import CustomerClientAssociationWithClient
 from db.schemas.individual_relationship import IndividualRelationshipResponse
+
+# User summary for relationships
+class UserSummary(BaseModel):
+    id: UUID
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: str
+    
+    class Config:
+        from_attributes = True
+
+# Individual summary for tab responses (simplified to avoid circular imports)
+class IndividualSummary(BaseModel):
+    id: UUID
+    first_name: str
+    last_name: str
+    full_name: str
+    email: Optional[str] = None
+    incomes: List[IncomeResponse] = []
+    
+    class Config:
+        from_attributes = True
 
 # Document schema for responses
 class DocumentResponse(BaseModel):

@@ -71,7 +71,12 @@ class Individual(Base):
     messages = relationship("Message", back_populates="individual")
     documents = relationship("Document", back_populates="individual")
     incomes = relationship("Income", back_populates="individual", cascade="all, delete-orphan", lazy="selectin")
-    properties = relationship("Property", back_populates="individual", cascade="all, delete-orphan", lazy="selectin")
+    
+    # Property relationships
+    property_relationships = relationship("PropertyIndividualRelationship", 
+                                       back_populates="individual",
+                                       cascade="all, delete-orphan",
+                                       lazy="selectin")
     
     # Individual relationships
     relationships_from = relationship("IndividualRelationship", 

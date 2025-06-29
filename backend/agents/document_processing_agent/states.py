@@ -22,6 +22,7 @@ class AgentState(TypedDict):
     available_clients: List[ClientInfo]
     requires_client_selection: bool
     whatsapp_message_sent: bool
+    invoice_id: Optional[str]
 
 # Document categories
 DOCUMENT_CATEGORIES = [

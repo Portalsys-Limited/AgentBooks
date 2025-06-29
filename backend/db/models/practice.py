@@ -28,4 +28,8 @@ class Practice(Base):
     clients = relationship("Client", back_populates="practice")
     messages = relationship("Message", back_populates="practice")
     services = relationship("Service", back_populates="practice", cascade="all, delete-orphan")
-    documents = relationship("Document", back_populates="practice") 
+    documents = relationship("Document", back_populates="practice")
+    invoices = relationship("Invoice", back_populates="practice")
+    
+    def __repr__(self):
+        return f"<Practice(id={self.id}, name={self.name})>" 

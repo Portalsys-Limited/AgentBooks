@@ -8,7 +8,7 @@ from db.models.income import IncomeType
 from db.schemas.user import User as UserSchema
 from api.users import get_current_user
 
-router = APIRouter(tags=["incomes"])
+router = APIRouter()
 
 @router.get("/enums", response_model=Dict[str, List[Dict[str, str]]])
 async def get_income_enums():
