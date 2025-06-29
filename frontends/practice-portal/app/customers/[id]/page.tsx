@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 // Import customer service
-import { getCustomerInfo } from '../../../lib/customers/service'
+import { getCustomerInfo, updateCustomer } from '../../../lib/customers/service'
 import { CustomerInfoTabResponse } from '../../../lib/customers/types'
 
 // Helper function to capitalize strings
@@ -71,9 +71,14 @@ export default function CustomerDetailPage() {
 
   const handleSave = async () => {
     try {
-      // TODO: Implement API call to save changes
-      // const updatedCustomer = await updateCustomer(customerId, editedCustomer)
-      // setCustomer(updatedCustomer)
+      if (!editedCustomer) return
+      // Prepare the update payload (remove fields not needed by backend if necessary)
+      const updatePayload = {
+        ...editedCustomer,
+        individual: undefined, // Remove nested objects if backend expects flat structure
+      }
+      const updatedCustomer = await updateCustomer(customerId, updatePayload)
+      setCustomer(updatedCustomer)
       setIsEditing(false)
     } catch (error) {
       console.error('Error saving changes:', error)
@@ -211,7 +216,7 @@ export default function CustomerDetailPage() {
               <>
                 <button
                   onClick={handleSave}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex items-center px-5 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <CheckIcon className="h-4 w-4 mr-1.5" />
                   Save

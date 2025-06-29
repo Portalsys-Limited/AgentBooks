@@ -47,7 +47,13 @@ const capitalize = (str?: string) => {
   return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ')
 }
 
-// Input field component for editing
+// Helper for empty values (use dash)
+const displayValue = (value?: string | number) => {
+  if (value === undefined || value === null || value === '') return <span className="text-gray-300">&mdash;</span>
+  return value
+}
+
+// Improved EditableField
 const EditableField = ({ 
   label, 
   value, 
@@ -61,19 +67,28 @@ const EditableField = ({
   type?: 'text' | 'email' | 'tel' | 'number' | 'date'
   isEditing: boolean
 }) => {
-  return (
-    <div>
-      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</label>
-      {isEditing ? (
+  if (isEditing) {
+    return (
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-gray-700 tracking-wide mb-0.5">
+          {label}
+        </label>
         <input
           type={type}
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="mt-0.5 block w-full rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:text-sm transition-all bg-white hover:border-blue-400"
         />
-      ) : (
-        <p className="mt-1 text-sm text-gray-900">{value || 'Not specified'}</p>
-      )}
+      </div>
+    )
+  }
+  // View mode: label and value
+  return (
+    <div className="space-y-0.5">
+      <div className="block text-xs text-gray-500 font-medium mb-0.5">{label}</div>
+      <div className="text-base font-medium text-gray-900 truncate" title={value ? String(value) : ''}>
+        {displayValue(value)}
+      </div>
     </div>
   )
 }
@@ -139,16 +154,16 @@ export default function CustomerDetailSection({
   const [isExpanded, setIsExpanded] = useState(isInitiallyExpanded)
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg mb-4 overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-2xl mb-6 shadow-sm overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
+        className="w-full px-8 py-4 flex items-center justify-between text-left hover:bg-gray-50 focus:outline-none focus:bg-gray-50 group"
         data-reactid={`detail-section-${title.toLowerCase().replace(/\s+/g, '-')}`}
       >
         <div className="flex items-center space-x-3">
-          <Icon className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+          <Icon className="h-6 w-6 text-blue-600 group-hover:text-blue-700 transition" />
+          <h3 className="text-xl font-bold text-gray-900 tracking-tight">{title}</h3>
         </div>
         {isExpanded ? (
           <ChevronUpIcon className="h-5 w-5 text-gray-400" />
@@ -159,7 +174,7 @@ export default function CustomerDetailSection({
 
       {/* Content */}
       {isExpanded && (
-        <div className="px-6 pb-6 border-t border-gray-100">
+        <div className="px-8 pb-8 border-t border-gray-100 bg-white">
           <div className="mt-4">
             {children}
           </div>
@@ -189,7 +204,7 @@ export function CustomerInformationDisplay({
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {/* Basic Details - Left Column (1/3 width) */}
             <div className="md:col-span-4 space-y-2">
-              <h4 className="font-medium text-gray-900 text-sm uppercase tracking-wide mb-2">Basic Details</h4>
+              <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wide mb-3">Basic details</h4>
               <div className="space-y-2">
                 <EditableField
                   label="First Name"
@@ -241,7 +256,7 @@ export function CustomerInformationDisplay({
             <div className="md:col-span-8 space-y-6">
               {/* Address Information */}
               <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 text-sm uppercase tracking-wide mb-2">Address</h4>
+                <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wide mb-3">Address</h4>
                 <AddressSearch 
                   onAddressSelect={(address) => {
                     // TODO: Handle address selection
@@ -297,7 +312,7 @@ export function CustomerInformationDisplay({
 
               {/* Contact Information */}
               <div className="space-y-4">
-                <h4 className="font-medium text-gray-900 text-sm uppercase tracking-wide mb-2">Contact Information</h4>
+                <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wide mb-3">Contact Information</h4>
                 <div className="space-y-4">
                   {/* Primary Contact Row */}
                   <div className="grid grid-cols-2 gap-4">
@@ -351,7 +366,7 @@ export function CustomerInformationDisplay({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left Column */}
             <div className="space-y-4">
-              <h4 className="font-medium text-gray-900 text-sm uppercase tracking-wide">Tax Information</h4>
+              <h4 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Tax Information</h4>
               <div className="space-y-3">
                 <EditableField
                   label="NI Number"
@@ -374,7 +389,7 @@ export function CustomerInformationDisplay({
 
             {/* Right Column */}
             <div className="space-y-4">
-              <h4 className="font-medium text-gray-900 text-sm uppercase tracking-wide">Compliance Status</h4>
+              <h4 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Compliance Status</h4>
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">MLR Status</label>
@@ -495,7 +510,7 @@ export function CustomerInformationDisplay({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left Column */}
             <div className="space-y-4">
-              <h4 className="font-medium text-gray-900 text-sm uppercase tracking-wide">Notes & Comments</h4>
+              <h4 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Notes & Comments</h4>
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Comments</label>
@@ -510,7 +525,7 @@ export function CustomerInformationDisplay({
 
             {/* Right Column */}
             <div className="space-y-4">
-              <h4 className="font-medium text-gray-900 text-sm uppercase tracking-wide">Edit History</h4>
+              <h4 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Edit History</h4>
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last Edited</label>
