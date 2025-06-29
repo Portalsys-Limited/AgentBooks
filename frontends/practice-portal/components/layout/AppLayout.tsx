@@ -28,10 +28,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="flex h-screen bg-gray-50">
       <Sidebar user={user} onLogout={logout} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <TopNavBar user={user} onLogout={logout} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
-          {children}
-        </main>
+        <div className="flex-none">
+          <TopNavBar user={user} onLogout={logout} />
+        </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   )
