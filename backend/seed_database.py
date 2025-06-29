@@ -755,13 +755,48 @@ async def create_sample_data():
             password_hash = get_password_hash("admin")  # Password is "admin"
             
             users_data = [
-                {"email": "admin@agentbooks.com", "role": UserRole.practice_owner},
-                {"email": "accountant@agentbooks.com", "role": UserRole.accountant},
-                {"email": "nyal@portalsys.co.uk", "role": UserRole.client},
-                {"email": "ashani@portalsys.co.uk", "role": UserRole.client},
-                {"email": "alice.johnson@abcdltd.com", "role": UserRole.client},
-                {"email": "harrison@harrisonbernstein.co.uk", "role": UserRole.client},
-                {"email": "david@beckfieldsstore.com", "role": UserRole.client},
+                {
+                    "email": "admin@agentbooks.com", 
+                    "role": UserRole.practice_owner,
+                    "first_name": "Admin",
+                    "last_name": "User"
+                },
+                {
+                    "email": "accountant@agentbooks.com", 
+                    "role": UserRole.accountant,
+                    "first_name": "John",
+                    "last_name": "Smith"
+                },
+                {
+                    "email": "nyal@portalsys.co.uk", 
+                    "role": UserRole.client,
+                    "first_name": "Nyal",
+                    "last_name": "Patel"
+                },
+                {
+                    "email": "ashani@portalsys.co.uk", 
+                    "role": UserRole.client,
+                    "first_name": "Ashani",
+                    "last_name": "Patel"
+                },
+                {
+                    "email": "alice.johnson@abcdltd.com", 
+                    "role": UserRole.client,
+                    "first_name": "Alice",
+                    "last_name": "Johnson"
+                },
+                {
+                    "email": "harrison@harrisonbernstein.co.uk", 
+                    "role": UserRole.client,
+                    "first_name": "Harrison",
+                    "last_name": "Bernstein"
+                },
+                {
+                    "email": "david@beckfieldsstore.com", 
+                    "role": UserRole.client,
+                    "first_name": "David",
+                    "last_name": "Beckfield"
+                },
             ]
             
             created_users = []
@@ -770,6 +805,8 @@ async def create_sample_data():
                     email=user_data["email"],
                     password_hash=password_hash,
                     role=user_data["role"],
+                    first_name=user_data["first_name"],
+                    last_name=user_data["last_name"],
                     practice_id=practice.id if user_data["role"] != UserRole.client else None
                 )
                 db.add(user)

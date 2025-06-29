@@ -72,7 +72,6 @@ async def get_users_for_current_practice(
     # Get users for the practice
     result = await db.execute(
         select(UserModel)
-        .options(selectinload(UserModel.assigned_clients))
         .where(UserModel.practice_id == current_user.practice_id)
         .offset(skip)
         .limit(limit)
@@ -110,7 +109,6 @@ async def get_users_by_practice(
     # Get users for the practice
     result = await db.execute(
         select(UserModel)
-        .options(selectinload(UserModel.assigned_clients))
         .where(UserModel.practice_id == practice_uuid)
         .offset(skip)
         .limit(limit)
@@ -203,6 +201,8 @@ async def update_user(
     # Update user
     user.role = user_data.role
     user.email = user_data.email
+    user.first_name = user_data.first_name
+    user.last_name = user_data.last_name
     
     # Update password if provided
     if user_data.password:

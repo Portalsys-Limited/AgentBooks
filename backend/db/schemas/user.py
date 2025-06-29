@@ -9,6 +9,8 @@ from db.models import UserRole
 class UserBase(BaseModel):
     email: EmailStr
     role: UserRole
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class UserCreate(UserBase):
@@ -25,6 +27,9 @@ class UserListItem(BaseModel):
     id: UUID
     email: EmailStr
     role: UserRole
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: str
     practice_id: Optional[UUID] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -36,6 +41,7 @@ class UserListItem(BaseModel):
 class User(UserBase):
     id: UUID
     practice_id: Optional[UUID] = None
+    full_name: str
     created_at: datetime
     updated_at: Optional[datetime] = None
     

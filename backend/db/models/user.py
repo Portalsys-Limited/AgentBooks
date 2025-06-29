@@ -21,6 +21,8 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
     role = Column(SQLEnum(UserRole), nullable=False)
     practice_id = Column(UUID(as_uuid=True), ForeignKey("practices.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -31,4 +33,11 @@ class User(Base):
     uploaded_documents = relationship("Document", foreign_keys="Document.uploaded_by_user_id", back_populates="uploaded_by")
     validated_documents = relationship("Document", foreign_keys="Document.validated_by_user_id", back_populates="validated_by")
     archived_documents = relationship("Document", foreign_keys="Document.archived_by_user_id", back_populates="archived_by")
-    messages = relationship("Message", back_populates="user") 
+    messages = relationship("Message", back_populates="user")
+    
+    @property
+    def full_name(self):
+        """Return the full name of the user"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.email 
