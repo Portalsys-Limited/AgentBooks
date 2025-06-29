@@ -1,6 +1,6 @@
-// lib/customers/index.ts
+// lib/individuals/index.ts
 // ==========================================
-// CUSTOMERS MODULE EXPORTS
+// INDIVIDUALS MODULE EXPORTS
 // ==========================================
 
 // Export all types

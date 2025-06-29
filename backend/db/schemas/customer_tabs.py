@@ -8,6 +8,7 @@ from db.models.documents import DocumentType, DocumentSource, DocumentAgentState
 from db.schemas.income import IncomeResponse
 from db.schemas.customer_client_association import CustomerClientAssociationWithClient
 from db.schemas.individual_relationship import IndividualRelationshipResponse
+from db.schemas.property_individual_relationship import PropertyIndividualRelationshipWithProperty
 
 # User summary for relationships
 class UserSummary(BaseModel):
@@ -28,6 +29,7 @@ class IndividualSummary(BaseModel):
     full_name: str
     email: Optional[str] = None
     incomes: List[IncomeResponse] = []
+    property_relationships: List[PropertyIndividualRelationshipWithProperty] = []
     
     class Config:
         from_attributes = True
