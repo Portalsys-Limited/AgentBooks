@@ -13,7 +13,8 @@ from .nodes import (
     send_rejection_message_node,
     send_selection_poll_node,
     assign_single_client_node,
-    process_invoice_node
+    process_invoice_node,
+    process_receipt_node
 )
 
 def end_workflow(state: AgentState) -> None:
@@ -21,7 +22,7 @@ def end_workflow(state: AgentState) -> None:
     state["current_node"] = "end"
     return None
 
-def create_document_processing_workflow(db_session: Session, llm: ChatOpenAI, tools: list[BaseTool]) -> StateGraph:
+def create_document_processing_workflow(db_session: Session, llm, llm_invoice: ChatOpenAI, tools: list[BaseTool]) -> StateGraph:
     """Create the document processing workflow graph."""
     
     # Create workflow graph
@@ -55,7 +56,12 @@ def create_document_processing_workflow(db_session: Session, llm: ChatOpenAI, to
     
     workflow.add_node(
         "process_invoice",
-        lambda state: process_invoice_node(state, db_session, llm)
+        lambda state: process_invoice_node(state, db_session, llm_invoice)
+    )
+    
+    workflow.add_node(
+        "process_receipt",
+        lambda state: process_receipt_node(state, db_session, llm_invoice)
     )
     
     workflow.add_node("end", end_workflow)
@@ -75,6 +81,7 @@ def create_document_processing_workflow(db_session: Session, llm: ChatOpenAI, to
             "send_selection_poll": "send_selection_poll",
             "assign_single_client": "assign_single_client",
             "process_invoice": "process_invoice",
+            "process_receipt": "process_receipt",
             "end": "end",
         },
     )
@@ -88,6 +95,7 @@ def create_document_processing_workflow(db_session: Session, llm: ChatOpenAI, to
         route_after_assign_single_client,
         {
             "process_invoice": "process_invoice",
+            "process_receipt": "process_receipt",
             "end": "end",
         },
     )
@@ -95,6 +103,7 @@ def create_document_processing_workflow(db_session: Session, llm: ChatOpenAI, to
     workflow.add_edge("send_rejection_message", "end")
     workflow.add_edge("send_selection_poll", "end")
     workflow.add_edge("process_invoice", "end")
+    workflow.add_edge("process_receipt", "end")
     
     # Set entry point
     workflow.set_entry_point("classify_document")

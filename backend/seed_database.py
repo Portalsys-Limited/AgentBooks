@@ -18,7 +18,7 @@ from db.models.base import Base  # Import Base to access metadata
 from db.models import (
     Practice, User, Individual, Customer, Client, CustomerClientAssociation, 
     Service, ClientService, Income, Property, PropertyIndividualRelationship,
-    UserRole, BusinessType, IndividualRelationship
+    UserRole, BusinessType, IndividualRelationship, ChartOfAccount, AccountType, AccountSource, SyncStatus
 )
 from db.models.individuals import Gender, MaritalStatus
 from db.models.customer import MLRStatus, CustomerStatus
@@ -550,6 +550,21 @@ async def create_sample_data():
                     "bedrooms": "2",
                     "bathrooms": "1",
                     "is_rental_property": False
+                },
+                # Tech Hub Office
+                {
+                    "property_name": "Tech Hub Office",
+                    "property_type": PropertyType.commercial,
+                    "property_status": PropertyStatus.owned,
+                    "address_line_1": "42 Innovation Street",
+                    "town": "London",
+                    "post_code": "EC2A 4DP",
+                    "country": "United Kingdom",
+                    "purchase_price": Decimal("350000"),
+                    "current_value": Decimal("425000"),
+                    "property_size": "1200 sq ft",
+                    "is_rental_property": False,
+                    "description": "Modern tech office space with open plan layout and meeting rooms"
                 }
             ]
             
@@ -673,6 +688,15 @@ async def create_sample_data():
                     "ownership_percentage": Decimal("50.00"),
                     "start_date": datetime(2020, 6, 1),
                     "description": "Shared ownership property"
+                },
+                {
+                    "property_idx": 7,
+                    "individual_idx": 0,  # Nyal
+                    "ownership_type": OwnershipType.sole_owner,
+                    "ownership_percentage": Decimal("100.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2021, 9, 1),
+                    "description": "Commercial office for tech consultancy business"
                 }
             ]
             
@@ -870,6 +894,77 @@ async def create_sample_data():
             await db.flush()
             print(f"✅ Created {len(created_client_services)} client-service assignments")
             
+            # Create Chart of Accounts for each client
+            print("Creating chart of accounts...")
+            source_mapping = {
+                'xero': AccountSource.XERO,
+                'quickbooks': AccountSource.QUICKBOOKS,
+                'odoo': AccountSource.ODOO
+            }
+            
+            for client in clients:
+                # Get source based on client's accounting software, default to MANUAL if None
+                source = AccountSource.MANUAL
+                if client.accounting_software:
+                    source = source_mapping.get(client.accounting_software.value.lower(), AccountSource.MANUAL)
+                
+                # Standard accounts structure
+                accounts_data = [
+                    # Asset accounts (1000-1999)
+                    {'code': '1000', 'name': 'Cash', 'type': AccountType.ASSET},
+                    {'code': '1100', 'name': 'Accounts Receivable', 'type': AccountType.ASSET},
+                    {'code': '1200', 'name': 'Inventory', 'type': AccountType.ASSET},
+                    {'code': '1300', 'name': 'Prepaid Expenses', 'type': AccountType.ASSET},
+                    {'code': '1400', 'name': 'Fixed Assets', 'type': AccountType.ASSET},
+                    {'code': '1500', 'name': 'Accumulated Depreciation', 'type': AccountType.ASSET},
+                    
+                    # Liability accounts (2000-2999)
+                    {'code': '2000', 'name': 'Accounts Payable', 'type': AccountType.LIABILITY},
+                    {'code': '2100', 'name': 'Accrued Expenses', 'type': AccountType.LIABILITY},
+                    {'code': '2200', 'name': 'Income Tax Payable', 'type': AccountType.LIABILITY},
+                    {'code': '2300', 'name': 'VAT Payable', 'type': AccountType.LIABILITY},
+                    {'code': '2400', 'name': 'Payroll Liabilities', 'type': AccountType.LIABILITY},
+                    {'code': '2500', 'name': 'Long-term Debt', 'type': AccountType.LIABILITY},
+                    
+                    # Equity accounts (3000-3999)
+                    {'code': '3000', 'name': 'Owner\'s Equity', 'type': AccountType.EQUITY},
+                    {'code': '3100', 'name': 'Retained Earnings', 'type': AccountType.EQUITY},
+                    {'code': '3200', 'name': 'Common Stock', 'type': AccountType.EQUITY},
+                    
+                    # Revenue accounts (4000-4999)
+                    {'code': '4000', 'name': 'Sales Revenue', 'type': AccountType.REVENUE},
+                    {'code': '4100', 'name': 'Service Revenue', 'type': AccountType.REVENUE},
+                    {'code': '4200', 'name': 'Interest Income', 'type': AccountType.REVENUE},
+                    {'code': '4300', 'name': 'Other Revenue', 'type': AccountType.REVENUE},
+                    
+                    # Expense accounts (5000-5999)
+                    {'code': '5000', 'name': 'Cost of Goods Sold', 'type': AccountType.EXPENSE},
+                    {'code': '5100', 'name': 'Salaries Expense', 'type': AccountType.EXPENSE},
+                    {'code': '5200', 'name': 'Rent Expense', 'type': AccountType.EXPENSE},
+                    {'code': '5300', 'name': 'Utilities Expense', 'type': AccountType.EXPENSE},
+                    {'code': '5400', 'name': 'Office Supplies', 'type': AccountType.EXPENSE},
+                    {'code': '5500', 'name': 'Marketing Expense', 'type': AccountType.EXPENSE},
+                    {'code': '5600', 'name': 'Insurance Expense', 'type': AccountType.EXPENSE},
+                    {'code': '5700', 'name': 'Depreciation Expense', 'type': AccountType.EXPENSE},
+                    {'code': '5800', 'name': 'Bank Fees', 'type': AccountType.EXPENSE},
+                    {'code': '5900', 'name': 'Miscellaneous Expense', 'type': AccountType.EXPENSE}
+                ]
+                
+                for account_data in accounts_data:
+                    account = ChartOfAccount(
+                        client_id=client.id,
+                        code=account_data['code'],
+                        name=account_data['name'],
+                        account_type=account_data['type'],
+                        source=source,
+                        is_active=True,
+                        sync_status=SyncStatus.SYNCED if source != AccountSource.MANUAL else None
+                    )
+                    db.add(account)
+            
+            await db.flush()
+            print(f"✅ Created {len(clients) * len(accounts_data)} chart of accounts entries ({len(accounts_data)} accounts for each of {len(clients)} clients)")
+            
             # Create essential users for testing
             password_hash = get_password_hash("admin")  # Password is "admin"
             
@@ -950,6 +1045,7 @@ async def create_sample_data():
             print(f"Associations: {len(created_associations)}")
             print(f"Services: {len(services)}")
             print(f"Client-Service Assignments: {len(created_client_services)}")
+            print(f"Chart of Accounts: {len(clients) * len(accounts_data)} total ({len(accounts_data)} per client)")
             
             print("\n👥 Individual → Customer → Relations:")
             for i, individual in enumerate(individuals):

@@ -16,6 +16,7 @@ from .property import Property, PropertyType, PropertyStatus
 from .individual_relationship import IndividualRelationship, IndividualRelationType
 from .property_individual_relationship import PropertyIndividualRelationship, OwnershipType
 from .invoice import Invoice, InvoiceLineItem, InvoiceStatus
+from .chart_of_accounts import ChartOfAccount, AccountType, AccountSource, SyncStatus
 
 # Re-export everything for backward compatibility
 __all__ = [
@@ -64,5 +65,9 @@ __all__ = [
     'OwnershipType',
     'Invoice',
     'InvoiceLineItem',
-    'InvoiceStatus'
+    'InvoiceStatus',
+    'ChartOfAccount',
+    'AccountType',
+    'AccountSource',
+    'SyncStatus'
 ] 

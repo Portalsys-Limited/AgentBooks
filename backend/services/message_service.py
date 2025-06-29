@@ -61,7 +61,7 @@ class MessageService:
                 document_to_assign.client_id = client_id
                 
                 # If document is an invoice, keep it in processing state for invoice handling
-                if document_to_assign.document_category == "invoice":
+                if document_to_assign.document_category == "invoice" or document_to_assign.document_category == "receipt":
                     document_to_assign.agent_state = DocumentAgentState.processing
                 else:
                     document_to_assign.agent_state = DocumentAgentState.processed
@@ -81,7 +81,7 @@ class MessageService:
                 )
                 
                 # If this is an invoice, trigger invoice processing via Celery task
-                if document_to_assign.document_category == "invoice":
+                if document_to_assign.document_category == "invoice" or document_to_assign.document_category == "receipt":
                     from workers.tasks.document_processor import process_document_workflow
                     process_document_workflow.delay(str(document_id))
                     print(f"🔄 Triggered document processing workflow for invoice {document_id}")
