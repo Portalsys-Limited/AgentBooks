@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from '../../types'
 import { 
@@ -9,8 +9,12 @@ import {
   UserCircleIcon,
   ChevronDownIcon,
   ArrowRightOnRectangleIcon,
-  UserIcon
+  UserIcon,
+  BuildingOfficeIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
+import { search } from '../../lib/search/service'
+import { SearchResult } from '../../lib/search/types'
 
 interface TopNavBarProps {
   user: User
@@ -20,6 +24,11 @@ interface TopNavBarProps {
 export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
   const router = useRouter()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   const getUserDisplayName = () => {
     // Use email username as display name since User type doesn't have first_name/last_name
@@ -30,12 +39,158 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
     return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
 
+  // Handle search
+  useEffect(() => {
+    const delayedSearch = setTimeout(async () => {
+      if (searchQuery.trim().length >= 2) {
+        setIsSearching(true)
+        try {
+          const results = await search(searchQuery, 10)
+          setSearchResults(results)
+          setShowResults(true)
+        } catch (error) {
+          console.error('Search error:', error)
+          setSearchResults(null)
+        } finally {
+          setIsSearching(false)
+        }
+      } else {
+        setSearchResults(null)
+        setShowResults(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(delayedSearch)
+  }, [searchQuery])
+
+  // Handle click outside to close search results
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowResults(false)
+        setSearchQuery('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSearchResultClick = (type: 'client' | 'customer', id: string) => {
+    setSearchQuery('')
+    setShowResults(false)
+    const path = type === 'client' ? `/clients/${id}` : `/customers/${id}`
+    router.push(path)
+  }
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between h-16">
         {/* Left side - Logo and branding */}
         <div className="flex items-center">
           <div className="flex items-center space-x-3">
+          </div>
+        </div>
+
+        {/* Center - Search Bar */}
+        <div className="flex-1 flex items-center justify-center max-w-2xl" ref={searchRef}>
+          <div className="w-full max-w-lg relative">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search clients & customers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {showResults && searchResults && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                {searchResults.clients.length === 0 && searchResults.customers.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    No results found
+                  </div>
+                ) : (
+                  <>
+                    {/* Clients */}
+                    {searchResults.clients.length > 0 && (
+                      <div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                          Clients
+                        </div>
+                        {searchResults.clients.map((client) => (
+                          <button
+                            key={`client-${client.id}`}
+                            onClick={() => handleSearchResultClick('client', client.id)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                  <BuildingOfficeIcon className="w-4 h-4 text-green-600" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {client.name}
+                                </div>
+                                {client.business_type && (
+                                  <div className="text-xs text-gray-400 truncate">
+                                    {client.business_type.replace('_', ' ')}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Customers */}
+                    {searchResults.customers.length > 0 && (
+                      <div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                          Customers
+                        </div>
+                        {searchResults.customers.map((customer) => (
+                          <button
+                            key={`customer-${customer.id}`}
+                            onClick={() => handleSearchResultClick('customer', customer.id)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <UserIcon className="w-4 h-4 text-blue-600" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {customer.name}
+                                </div>
+                                {customer.email && (
+                                  <div className="text-xs text-gray-400 truncate">
+                                    {customer.email}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
