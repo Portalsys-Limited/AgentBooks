@@ -70,18 +70,20 @@ class Individual(Base):
     customers = relationship("Customer", back_populates="individual")
     messages = relationship("Message", back_populates="individual")
     documents = relationship("Document", back_populates="individual")
-    incomes = relationship("Income", back_populates="individual", cascade="all, delete-orphan")
-    properties = relationship("Property", back_populates="individual", cascade="all, delete-orphan")
+    incomes = relationship("Income", back_populates="individual", cascade="all, delete-orphan", lazy="selectin")
+    properties = relationship("Property", back_populates="individual", cascade="all, delete-orphan", lazy="selectin")
     
     # Individual relationships
     relationships_from = relationship("IndividualRelationship", 
                                    foreign_keys="[IndividualRelationship.from_individual_id]",
                                    back_populates="from_individual",
-                                   cascade="all, delete-orphan")
+                                   cascade="all, delete-orphan",
+                                   lazy="selectin")
     relationships_to = relationship("IndividualRelationship",
                                  foreign_keys="[IndividualRelationship.to_individual_id]",
                                  back_populates="to_individual",
-                                 cascade="all, delete-orphan")
+                                 cascade="all, delete-orphan",
+                                 lazy="selectin")
     
     def __repr__(self):
         return f"<Individual(id={self.id}, name='{self.first_name} {self.last_name}', email='{self.email}')>"
