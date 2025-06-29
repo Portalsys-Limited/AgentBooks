@@ -34,7 +34,8 @@ async def get_customers(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
     
     query = select(Customer).options(
-        selectinload(Customer.individual)
+        selectinload(Customer.individual).selectinload(Individual.incomes),
+        selectinload(Customer.individual).selectinload(Individual.properties)
     ).filter(Customer.practice_id == current_user.practice_id)
     
     result = await db.execute(query)
@@ -60,9 +61,8 @@ async def get_customer(
     customer_query = (
         select(Customer)
         .options(
-            selectinload(Customer.individual),
-            selectinload(Customer.incomes),
-            selectinload(Customer.properties),
+            selectinload(Customer.individual).selectinload(Individual.incomes),
+            selectinload(Customer.individual).selectinload(Individual.properties),
             selectinload(Customer.client_associations).selectinload(CustomerClientAssociation.client),
             selectinload(Customer.primary_accounting_contact),
             selectinload(Customer.last_edited_by),
