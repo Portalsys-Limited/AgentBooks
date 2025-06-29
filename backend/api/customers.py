@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from typing import List
+from typing import List, Dict
 from uuid import UUID
 import logging
 
 from config.database import get_db
 from db.models import Customer, Individual, Income, Property, CustomerClientAssociation
+from db.models.customer import CustomerStatus, MLRStatus
 from db.schemas.customer import (
     CustomerCreateRequest, CustomerUpdateRequest,
     CustomerResponse, CustomerListItem
@@ -23,6 +24,23 @@ from api.users import get_current_user
 
 router = APIRouter(tags=["customers"])
 
+@router.get("/enums", response_model=Dict[str, List[Dict[str, str]]])
+async def get_customer_enums():
+    """Get all customer-related enum values"""
+    return {
+        "customer_statuses": [{"value": c.value, "label": c.value.replace("_", " ").title()} for c in CustomerStatus],
+        "mlr_statuses": [{"value": m.value, "label": m.value.replace("_", " ").title()} for m in MLRStatus]
+    }
+
+@router.get("/enums/statuses", response_model=List[Dict[str, str]])
+async def get_customer_statuses():
+    """Get all customer status options"""
+    return [{"value": c.value, "label": c.value.replace("_", " ").title()} for c in CustomerStatus]
+
+@router.get("/enums/mlr-statuses", response_model=List[Dict[str, str]])
+async def get_mlr_statuses():
+    """Get all MLR status options"""
+    return [{"value": m.value, "label": m.value.replace("_", " ").title()} for m in MLRStatus]
 
 @router.get("/", response_model=List[CustomerListItem])
 async def get_customers(
