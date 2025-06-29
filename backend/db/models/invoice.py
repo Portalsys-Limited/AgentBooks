@@ -64,12 +64,17 @@ class InvoiceLineItem(Base):
     subtotal = Column(Numeric(10, 2), nullable=False)
     total = Column(Numeric(10, 2), nullable=False)
     
+    # Account assignment
+    account_id = Column(UUID(as_uuid=True), ForeignKey("chart_of_accounts.id"), nullable=True, index=True)
+    account_code = Column(String, nullable=True)  # Denormalized for easier querying
+    
     # System fields
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     invoice = relationship("Invoice", back_populates="line_items")
+    account = relationship("ChartOfAccount")
     
     def __repr__(self):
-        return f"<InvoiceLineItem(id={self.id}, description='{self.description}', total={self.total})>" 
+        return f"<InvoiceLineItem(id={self.id}, description='{self.description}', total={self.total}, account_code='{self.account_code}')>" 

@@ -1,9 +1,9 @@
-"""Invoice processing nodes for document processing workflow."""
+"""Receipt processing nodes for document processing workflow."""
 
 from typing import Dict, Any, List
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import re
 from decimal import Decimal, InvalidOperation
@@ -13,8 +13,8 @@ from langchain_core.messages import HumanMessage
 from db.models import Document, Invoice, InvoiceLineItem, ChartOfAccount
 from ..states import AgentState
 
-def process_invoice_node(state: AgentState, db_session: Session, llm: ChatOpenAI) -> AgentState:
-    """Node to extract invoice/receipt data and save it to the database."""
+def process_receipt_node(state: AgentState, db_session: Session, llm: ChatOpenAI) -> AgentState:
+    """Node to extract receipt data and save it to the database."""
     document_type = state["classification_result"]["document_category"]
     print(f"Processing {document_type} data...")
     
@@ -34,17 +34,17 @@ def process_invoice_node(state: AgentState, db_session: Session, llm: ChatOpenAI
             select(ChartOfAccount).where(ChartOfAccount.client_id == document.client_id)
         ).scalars().all()
         
-        # Extract invoice/receipt data using the dedicated GPT-4 model passed into this node
-        invoice_data = extract_invoice_data(state["extracted_text"], llm, document_type, chart_of_accounts)
+        # Extract receipt data using the dedicated GPT-4 model passed into this node
+        receipt_data = extract_receipt_data(state["extracted_text"], llm, document_type, chart_of_accounts)
         
-        if not invoice_data:
+        if not receipt_data:
             print(f"Failed to extract {document_type} data")
             state["current_node"] = "end"
             return state
         
-        # Create invoice record
-        invoice = create_invoice_from_data(
-            invoice_data, 
+        # Create invoice record (receipts are stored as invoices with receipt category)
+        invoice = create_receipt_from_data(
+            receipt_data, 
             document.practice_id, 
             document.client_id, 
             document.id,
@@ -59,7 +59,7 @@ def process_invoice_node(state: AgentState, db_session: Session, llm: ChatOpenAI
                     "processed_at": datetime.utcnow().isoformat(),
                     "document_type": document_type,
                     "invoice_id": str(invoice.id),
-                    "extracted_data": invoice_data
+                    "extracted_data": receipt_data
                 }
             }
             
@@ -75,12 +75,12 @@ def process_invoice_node(state: AgentState, db_session: Session, llm: ChatOpenAI
     except Exception as e:
         if db_session.in_transaction():
             db_session.rollback()
-        print(f"Error processing invoice: {str(e)}")
+        print(f"Error processing receipt: {str(e)}")
         state["current_node"] = "end"
         return state
 
-def extract_invoice_data(extracted_text: str, llm: ChatOpenAI, document_type: str = "invoice", chart_of_accounts: List[ChartOfAccount] = None) -> Dict[str, Any]:
-    """Extract structured invoice/receipt data from text using LLM."""
+def extract_receipt_data(extracted_text: str, llm: ChatOpenAI, document_type: str = "receipt", chart_of_accounts: List[ChartOfAccount] = None) -> Dict[str, Any]:
+    """Extract structured receipt data from text using LLM."""
     
     # Build account code context
     account_context = ""
@@ -91,7 +91,7 @@ def extract_invoice_data(extracted_text: str, llm: ChatOpenAI, document_type: st
         ])
     
     prompt = f"""
-    You are an expert at extracting structured data from financial documents. Analyze the following {document_type} text and extract the key information in JSON format.
+    You are an expert at extracting structured data from receipt documents. Analyze the following {document_type} text and extract the key information in JSON format.
     {account_context}
 
     {document_type.title()} Text:
@@ -99,22 +99,22 @@ def extract_invoice_data(extracted_text: str, llm: ChatOpenAI, document_type: st
 
     Please extract the following information and return it as a valid JSON object:
     {{
-        "invoice_number": "string - the document number (invoice number, receipt number, etc.)",
-        "issue_date": "YYYY-MM-DD - the document issue/transaction date",
-        "due_date": "YYYY-MM-DD - the payment due date (for invoices) or transaction date (for receipts)",
+        "receipt_number": "string - the receipt number or transaction ID",
+        "transaction_date": "YYYY-MM-DD - the transaction/purchase date",
+        "vendor_name": "string - the name of the vendor/store",
         "subtotal": "decimal - subtotal amount before tax",
         "tax_amount": "decimal - total tax amount",
         "total_amount": "decimal - final total amount",
         "line_items": [
             {{
-                "description": "string - description of the item/service",
+                "description": "string - description of the item/service purchased",
                 "quantity": "integer - quantity",
                 "unit_price": "decimal - price per unit",
                 "tax_rate": "decimal - tax rate as percentage (e.g., 20.0 for 20%)",
                 "tax_amount": "decimal - tax amount for this line",
                 "subtotal": "decimal - quantity * unit_price",
                 "total": "decimal - subtotal + tax_amount",
-                "account_code": "string - matching account code to be assigned to invoice line item from available codes (if found)"
+                "account_code": "string - matching account code for expense categorization from available codes (if found)"
             }}
         ]
     }}
@@ -125,9 +125,9 @@ def extract_invoice_data(extracted_text: str, llm: ChatOpenAI, document_type: st
     - If a field cannot be found, use null
     - Ensure all calculations are correct
     - Tax rate should be a percentage (e.g., 20.0 for 20%)
-    - For invoices: If no due date is found, calculate it as 30 days from issue date
-    - For receipts: Use the transaction date as both issue_date and due_date
-    - For each line item, try to match the description with an appropriate account code from the available codes
+    - For receipts, use the transaction date as both issue_date and due_date
+    - For each line item, try to match the description with an appropriate expense account code from the available codes
+    - Focus on expense categorization since receipts typically represent business expenses
     """
 
     try:
@@ -157,57 +157,43 @@ def extract_invoice_data(extracted_text: str, llm: ChatOpenAI, document_type: st
                 print("No valid JSON found in LLM response")
                 return None
         
-        print(f"Parsed invoice data: {data}")
+        print(f"Parsed receipt data: {data}")
         # Validate and clean data
-        return validate_invoice_data(data, document_type, chart_of_accounts)
+        return validate_receipt_data(data, document_type, chart_of_accounts)
         
     except Exception as e:
-        print(f"Error extracting invoice data: {str(e)}")
+        print(f"Error extracting receipt data: {str(e)}")
         print(f"LLM response was: {getattr(response, 'content', None)}")
         return None
 
-def validate_invoice_data(data: Dict[str, Any], document_type: str, chart_of_accounts: List[ChartOfAccount] = None) -> Dict[str, Any]:
-    """Validate and clean extracted invoice/receipt data.
+def validate_receipt_data(data: Dict[str, Any], document_type: str, chart_of_accounts: List[ChartOfAccount] = None) -> Dict[str, Any]:
+    """Validate and clean extracted receipt data.
 
-    This function is lenient with missing dates for receipts. If `issue_date` or
-    `due_date` are missing we will substitute sensible defaults so the record
-    can still be saved (receipts often omit explicit dates).
+    This function is lenient with missing data for receipts and will substitute 
+    sensible defaults so the record can still be saved.
     """
     
-    print(f"Validating invoice data: {data}")
+    print(f"Validating receipt data: {data}")
     
-    # Basic validation – invoice_number is mandatory
-    if not data.get('invoice_number'):
-        print("Missing required field: invoice_number")
-        return None
+    # Basic validation – receipt_number is mandatory, but we can generate one if missing
+    if not data.get('receipt_number'):
+        # Generate a receipt number based on timestamp
+        data['receipt_number'] = f"RCP-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        print(f"Generated receipt number: {data['receipt_number']}")
 
     # Handle missing dates gracefully (common on receipts)
-    # Default to today for issue_date; for invoices we still require a date if
-    # we cannot infer it.
     today_str = datetime.utcnow().strftime('%Y-%m-%d')
 
-    if not data.get('issue_date'):
-        if document_type == 'receipt':
-            data['issue_date'] = today_str
-        else:
-            print("Missing issue_date for invoice – aborting")
-            return None
+    if not data.get('transaction_date'):
+        data['transaction_date'] = today_str
+        print("Using today's date for missing transaction date")
 
-    if not data.get('due_date'):
-        if document_type == 'invoice':
-            # Default due date 30 days after issue_date
-            try:
-                issue_dt = datetime.strptime(data['issue_date'], '%Y-%m-%d')
-                from datetime import timedelta
-                data['due_date'] = (issue_dt + timedelta(days=30)).strftime('%Y-%m-%d')
-            except ValueError:
-                print("Invalid issue_date format – aborting")
-                return None
-        else:
-            # For receipts use the same day as issue_date
-            data['due_date'] = data['issue_date']
+    # Convert receipt format to invoice format for storage
+    data['invoice_number'] = data.get('receipt_number')
+    data['issue_date'] = data.get('transaction_date')
+    data['due_date'] = data.get('transaction_date')  # Same day for receipts
 
-    # Validate dates (now guaranteed to be present)
+    # Validate dates
     try:
         data['issue_date'] = datetime.strptime(data['issue_date'], '%Y-%m-%d').strftime('%Y-%m-%d')
         data['due_date'] = datetime.strptime(data['due_date'], '%Y-%m-%d').strftime('%Y-%m-%d')
@@ -264,7 +250,7 @@ def validate_invoice_data(data: Dict[str, Any], document_type: str, chart_of_acc
             
             data['line_items'] = cleaned_items
 
-            # If invoice-level monetary fields were missing or zero, recompute from line items
+            # If receipt-level monetary fields were missing or zero, recompute from line items
             subtotal_sum = sum(item['subtotal'] for item in cleaned_items)
             tax_sum = sum(item['tax_amount'] for item in cleaned_items)
             total_sum = sum(item['total'] for item in cleaned_items)
@@ -280,35 +266,35 @@ def validate_invoice_data(data: Dict[str, Any], document_type: str, chart_of_acc
         print(f"Monetary value validation error: {str(e)}")
         return None
     
-    print(f"Validated invoice data: {data}")
+    print(f"Validated receipt data: {data}")
     return data
 
-def create_invoice_from_data(invoice_data: Dict[str, Any], practice_id: str, client_id: str, document_id: str, db_session: Session) -> Invoice:
-    """Create invoice and line items from extracted data."""
+def create_receipt_from_data(receipt_data: Dict[str, Any], practice_id: str, client_id: str, document_id: str, db_session: Session) -> Invoice:
+    """Create receipt record (stored as invoice) and line items from extracted data."""
     
-    print(f"Creating invoice from data: {invoice_data}")
+    print(f"Creating receipt from data: {receipt_data}")
     
     try:
-        # Create invoice
+        # Create invoice record (receipts are stored as invoices)
         invoice = Invoice(
             practice_id=practice_id,
             client_id=client_id,
             document_id=document_id,
-            invoice_number=invoice_data['invoice_number'],
-            issue_date=datetime.strptime(invoice_data['issue_date'], '%Y-%m-%d'),
-            due_date=datetime.strptime(invoice_data['due_date'], '%Y-%m-%d'),
-            subtotal=Decimal(str(invoice_data['subtotal'])).quantize(Decimal('0.01')),
-            tax_amount=Decimal(str(invoice_data['tax_amount'])).quantize(Decimal('0.01')),
-            total_amount=Decimal(str(invoice_data['total_amount'])).quantize(Decimal('0.01'))
+            invoice_number=receipt_data['invoice_number'],
+            issue_date=datetime.strptime(receipt_data['issue_date'], '%Y-%m-%d'),
+            due_date=datetime.strptime(receipt_data['due_date'], '%Y-%m-%d'),
+            subtotal=Decimal(str(receipt_data['subtotal'])).quantize(Decimal('0.01')),
+            tax_amount=Decimal(str(receipt_data['tax_amount'])).quantize(Decimal('0.01')),
+            total_amount=Decimal(str(receipt_data['total_amount'])).quantize(Decimal('0.01'))
         )
         
         db_session.add(invoice)
         db_session.flush()  # Get the invoice ID
-        print(f"Invoice created with ID: {invoice.id}")
+        print(f"Receipt invoice created with ID: {invoice.id}")
         
         # Create line items (best-effort – skip rows that raise errors)
-        if invoice_data.get('line_items'):
-            for idx, item_data in enumerate(invoice_data['line_items'], start=1):
+        if receipt_data.get('line_items'):
+            for idx, item_data in enumerate(receipt_data['line_items'], start=1):
                 try:
                     line_item = InvoiceLineItem(
                         invoice_id=invoice.id,
@@ -327,10 +313,10 @@ def create_invoice_from_data(invoice_data: Dict[str, Any], practice_id: str, cli
                     print(f"⚠️  Skipped line item {idx} due to error: {item_err}")
         
         db_session.commit()
-        print(f"Invoice saved successfully with invoice ID: {invoice.id}")
+        print(f"Receipt saved successfully with invoice ID: {invoice.id}")
         return invoice
         
     except Exception as e:
         db_session.rollback()
-        print(f"Error creating invoice: {str(e)}")
+        print(f"Error creating receipt: {str(e)}")
         raise 

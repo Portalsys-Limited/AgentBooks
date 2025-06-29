@@ -72,9 +72,16 @@ class DocumentProcessingAgent:
         self.practice = self._load_practice()
         
         # Initialize LangGraph components
-        self.llm = ChatOpenAI(model="gpt-4o-mini")
+        self.llm_general = ChatOpenAI(model="gpt-4o-mini")  # default model for most nodes
+        self.llm_invoice = ChatOpenAI(model="gpt-4o", temperature=0)  # higher accuracy for invoices
         self.tools = [DocumentClassificationTool()]
-        self.workflow = create_document_processing_workflow(self.db_session, self.llm, self.tools)
+        # Pass both LLMs to the workflow (general and invoice-specific)
+        self.workflow = create_document_processing_workflow(
+            self.db_session,
+            self.llm_general,
+            self.llm_invoice,
+            self.tools
+        )
         
     def _load_document(self) -> Document:
         """Load document from database."""
