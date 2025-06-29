@@ -7,7 +7,8 @@ from uuid import UUID
 import logging
 
 from config.database import get_db
-from db.models import Customer, Individual, Income, PropertyIndividualRelationship, CustomerClientAssociation, Document
+from db.models import Customer, Individual, Income, Property, CustomerClientAssociation, Document
+from db.models.property_individual_relationship import PropertyIndividualRelationship
 from db.models.customer import CustomerStatus, MLRStatus
 from db.models.individual_relationship import IndividualRelationship
 from db.schemas.customer import (
@@ -21,14 +22,15 @@ from db.schemas.customer_tabs import (
     CustomerDocumentsTabResponse
 )
 from db.schemas.income import IncomeCreateRequest, IncomeUpdateRequest, IncomeResponse
+from db.schemas.property import PropertyCreateRequest, PropertyUpdateRequest, PropertyResponse
 from db.schemas.customer_client_association import (
     CustomerClientAssociationCreate, CustomerClientAssociationUpdate, 
-    CustomerClientAssociationWithClient, CustomerClientAssociationResponse
+    CustomerClientAssociationWithClient
 )
 from db.schemas.user import User as UserSchema
 from api.users import get_current_user
 
-router = APIRouter()
+router = APIRouter(tags=["customers"])
 
 @router.get("/enums", response_model=Dict[str, List[Dict[str, str]]])
 async def get_customer_enums():
@@ -59,7 +61,7 @@ async def get_customers(
     
     query = select(Customer).options(
         selectinload(Customer.individual).selectinload(Individual.incomes),
-        selectinload(Customer.individual).selectinload(Individual.property_relationships).selectinload(PropertyIndividualRelationship.property)
+        selectinload(Customer.individual).selectinload(Individual.properties)
     ).filter(Customer.practice_id == current_user.practice_id)
     
     result = await db.execute(query)
@@ -86,7 +88,7 @@ async def get_customer(
         select(Customer)
         .options(
             selectinload(Customer.individual).selectinload(Individual.incomes),
-            selectinload(Customer.individual).selectinload(Individual.property_relationships).selectinload(PropertyIndividualRelationship.property),
+            selectinload(Customer.individual).selectinload(Individual.properties),
             selectinload(Customer.client_associations).selectinload(CustomerClientAssociation.client),
             selectinload(Customer.primary_accounting_contact),
             selectinload(Customer.last_edited_by),
@@ -298,7 +300,8 @@ async def get_customer_info(
 ):
     """Get customer info tab data"""
     query = select(Customer).options(
-        selectinload(Customer.individual),
+        selectinload(Customer.individual).selectinload(Individual.incomes),
+        selectinload(Customer.individual).selectinload(Individual.property_relationships).selectinload(PropertyIndividualRelationship.property),
         selectinload(Customer.primary_accounting_contact),
         selectinload(Customer.last_edited_by)
     ).where(Customer.id == customer_id)
@@ -397,184 +400,3 @@ async def get_customer_documents(
     response.documents = documents
     
     return response
-
-@router.post("/{customer_id}/associations", response_model=CustomerClientAssociationResponse)
-async def create_customer_client_association(
-    customer_id: UUID,
-    association_data: CustomerClientAssociationCreate,
-    current_user: UserSchema = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Create a new association between a customer and a client"""
-    if not current_user.practice_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
-    
-    # Verify customer exists and belongs to practice
-    customer = await db.execute(
-        select(Customer).where(
-            Customer.id == customer_id,
-            Customer.practice_id == current_user.practice_id
-        )
-    )
-    customer = customer.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
-    
-    # Check if association already exists
-    existing_result = await db.execute(
-        select(CustomerClientAssociation).where(
-            CustomerClientAssociation.customer_id == customer_id,
-            CustomerClientAssociation.client_id == association_data.client_id,
-            CustomerClientAssociation.relationship_type == association_data.relationship_type
-        )
-    )
-    existing_association = existing_result.scalar_one_or_none()
-    
-    if existing_association:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Association between this customer and client with relationship type '{association_data.relationship_type}' already exists"
-        )
-    
-    # Check if trying to set as primary contact and another primary contact already exists
-    if association_data.is_primary_contact:
-        existing_primary_result = await db.execute(
-            select(CustomerClientAssociation).where(
-                CustomerClientAssociation.client_id == association_data.client_id,
-                CustomerClientAssociation.is_primary_contact == True
-            )
-        )
-        existing_primary = existing_primary_result.scalar_one_or_none()
-        
-        if existing_primary:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This client already has a primary contact. Please remove the existing primary contact designation first or set this association to not be primary."
-            )
-    
-    # Create the association
-    association = CustomerClientAssociation(
-        customer_id=customer_id,
-        client_id=association_data.client_id,
-        relationship_type=association_data.relationship_type,
-        percentage_ownership=association_data.percentage_ownership,
-        appointment_date=association_data.appointment_date,
-        resignation_date=association_data.resignation_date,
-        is_active=association_data.is_active,
-        is_primary_contact=association_data.is_primary_contact or False,
-        notes=association_data.notes
-    )
-    
-    db.add(association)
-    await db.commit()
-    await db.refresh(association)
-    return association
-
-
-@router.put("/{customer_id}/associations/{association_id}", response_model=CustomerClientAssociationResponse)
-async def update_customer_client_association(
-    customer_id: UUID,
-    association_id: UUID,
-    association_data: CustomerClientAssociationUpdate,
-    current_user: UserSchema = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Update an existing customer-client association"""
-    if not current_user.practice_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
-    
-    # Verify customer exists and belongs to practice
-    customer = await db.execute(
-        select(Customer).where(
-            Customer.id == customer_id,
-            Customer.practice_id == current_user.practice_id
-        )
-    )
-    customer = customer.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
-    
-    # Get the association
-    association = await db.execute(
-        select(CustomerClientAssociation).where(
-            CustomerClientAssociation.id == association_id,
-            CustomerClientAssociation.customer_id == customer_id
-        )
-    )
-    association = association.scalar_one_or_none()
-    if not association:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Association not found")
-    
-    # Check if trying to set as primary contact and another primary contact already exists
-    if association_data.is_primary_contact is not None and association_data.is_primary_contact:
-        existing_primary_result = await db.execute(
-            select(CustomerClientAssociation).where(
-                CustomerClientAssociation.client_id == association.client_id,
-                CustomerClientAssociation.is_primary_contact == True,
-                CustomerClientAssociation.id != association_id
-            )
-        )
-        existing_primary = existing_primary_result.scalar_one_or_none()
-        
-        if existing_primary:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This client already has a primary contact. Please remove the existing primary contact designation first."
-            )
-    
-    # Update fields that are provided
-    if association_data.relationship_type is not None:
-        association.relationship_type = association_data.relationship_type
-    if association_data.percentage_ownership is not None:
-        association.percentage_ownership = association_data.percentage_ownership
-    if association_data.appointment_date is not None:
-        association.appointment_date = association_data.appointment_date
-    if association_data.resignation_date is not None:
-        association.resignation_date = association_data.resignation_date
-    if association_data.is_active is not None:
-        association.is_active = association_data.is_active
-    if association_data.is_primary_contact is not None:
-        association.is_primary_contact = association_data.is_primary_contact
-    if association_data.notes is not None:
-        association.notes = association_data.notes
-    
-    await db.commit()
-    await db.refresh(association)
-    return association
-
-
-@router.delete("/{customer_id}/associations/{association_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_customer_client_association(
-    customer_id: UUID,
-    association_id: UUID,
-    current_user: UserSchema = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Delete a customer-client association"""
-    if not current_user.practice_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
-    
-    # Verify customer exists and belongs to practice
-    customer = await db.execute(
-        select(Customer).where(
-            Customer.id == customer_id,
-            Customer.practice_id == current_user.practice_id
-        )
-    )
-    customer = customer.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
-    
-    # Get the association
-    association = await db.execute(
-        select(CustomerClientAssociation).where(
-            CustomerClientAssociation.id == association_id,
-            CustomerClientAssociation.customer_id == customer_id
-        )
-    )
-    association = association.scalar_one_or_none()
-    if not association:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Association not found")
-    
-    await db.delete(association)
-    await db.commit() 

@@ -45,6 +45,23 @@ export interface Property {
   updated_at?: string
 }
 
+// Property Individual Relationship type
+export interface PropertyIndividualRelationship {
+  id: string
+  ownership_type: string
+  ownership_percentage: number
+  is_primary_owner: boolean
+  start_date: string
+  end_date?: string
+  description?: string
+  notes?: string
+  property_id: string
+  individual_id: string
+  property: Property
+  created_at: string
+  updated_at?: string
+}
+
 // Individual type - expanded with all backend fields
 export interface Individual {
   id: string
@@ -84,7 +101,7 @@ export interface Individual {
   
   // Related data
   incomes: Income[]
-  properties: Property[]
+  property_relationships: PropertyIndividualRelationship[]
 }
 
 // Client type
@@ -265,7 +282,7 @@ export interface IndividualSummary {
   
   // Related data
   incomes: Income[]
-  properties: Property[]
+  property_relationships: PropertyIndividualRelationship[]
 }
 
 // Customer Info Tab Response

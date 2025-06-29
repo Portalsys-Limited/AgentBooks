@@ -456,31 +456,38 @@ export function CustomerInformationDisplay({
           icon={HomeIcon}
           isInitiallyExpanded={false}
         >
-          {editedCustomer.individual.properties && editedCustomer.individual.properties.length > 0 ? (
+          {editedCustomer.individual.property_relationships && editedCustomer.individual.property_relationships.length > 0 ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
-                {editedCustomer.individual.properties.map((property) => (
-                  <div key={property.id} className="bg-gray-50 p-4 rounded-lg border">
+                {editedCustomer.individual.property_relationships.map((relationship) => (
+                  <div key={relationship.id} className="bg-gray-50 p-4 rounded-lg border">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h5 className="font-medium text-gray-900">{property.property_name}</h5>
-                        <p className="text-sm text-gray-600">{capitalize(property.property_type)}</p>
+                        <h5 className="font-medium text-gray-900">{relationship.property.property_name}</h5>
+                        <p className="text-sm text-gray-600">{capitalize(relationship.property.property_type)}</p>
+                        <p className="text-xs text-blue-600 font-medium">
+                          {capitalize(relationship.ownership_type)} - {relationship.ownership_percentage}%
+                          {relationship.is_primary_owner && ' (Primary Owner)'}
+                        </p>
                       </div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        property.property_status === 'owned' 
+                        relationship.property.property_status === 'owned' 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-blue-100 text-blue-800'
                       }`}>
-                        {capitalize(property.property_status)}
+                        {capitalize(relationship.property.property_status)}
                       </span>
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <p>{property.full_address || `${property.address_line_1}, ${property.town}, ${property.post_code}`}</p>
-                      {property.current_value && (
-                        <p>Current Value: {formatCurrency(property.current_value)}</p>
+                      <p>{relationship.property.full_address || `${relationship.property.address_line_1}, ${relationship.property.town}, ${relationship.property.post_code}`}</p>
+                      {relationship.property.current_value && (
+                        <p>Current Value: {formatCurrency(relationship.property.current_value)}</p>
                       )}
-                      {property.monthly_rental_income && (
-                        <p>Monthly Rental: {formatCurrency(property.monthly_rental_income)}</p>
+                      {relationship.property.monthly_rental_income && (
+                        <p>Monthly Rental: {formatCurrency(relationship.property.monthly_rental_income)}</p>
+                      )}
+                      {relationship.description && (
+                        <p className="text-xs text-gray-500 italic">{relationship.description}</p>
                       )}
                     </div>
                   </div>
