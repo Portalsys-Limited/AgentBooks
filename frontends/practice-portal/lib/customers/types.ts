@@ -5,7 +5,7 @@
 
 import { BaseEntity } from '../shared/types'
 
-// Income type
+// Income type - expanded with all backend fields
 export interface Income {
   id: string
   income_type: string
@@ -15,19 +15,74 @@ export interface Income {
   updated_at?: string
 }
 
-// Property type
+// Property type - expanded with all backend fields
 export interface Property {
   id: string
-  // Add property fields as needed
+  property_name: string
+  property_type: string
+  property_status: string
+  address_line_1: string
+  address_line_2?: string
+  town: string
+  county?: string
+  country?: string
+  post_code: string
+  purchase_price?: number
+  current_value?: number
+  monthly_rental_income?: number
+  annual_rental_income?: number
+  bedrooms?: string
+  bathrooms?: string
+  property_size?: string
+  is_rental_property?: boolean
+  tenant_name?: string
+  lease_start_date?: string
+  lease_end_date?: string
+  description?: string
+  notes?: string
+  full_address?: string
+  created_at: string
+  updated_at?: string
 }
 
-// Individual type
+// Individual type - expanded with all backend fields
 export interface Individual {
   id: string
   first_name: string
   last_name: string
   full_name: string
+  title?: string
+  middle_name?: string
+  
+  // Personal details
+  date_of_birth?: string
+  deceased_date?: string
+  is_deceased?: boolean
+  marital_status?: string
+  gender?: string
+  nationality?: string
+  
+  // Contact information
   email?: string
+  secondary_email?: string
+  primary_mobile?: string
+  secondary_mobile?: string
+  
+  // Address
+  address_line_1?: string
+  address_line_2?: string
+  town?: string
+  county?: string
+  country?: string
+  post_code?: string
+  
+  // System fields
+  setup_date?: string
+  last_edited?: string
+  last_edited_by_id?: string
+  last_edited_by?: UserSummary
+  
+  // Related data
   incomes: Income[]
   properties: Property[]
 }
@@ -45,6 +100,9 @@ export interface Client {
 export interface UserSummary {
   id: string
   email: string
+  first_name?: string
+  last_name?: string
+  full_name: string
 }
 
 // Customer entity
@@ -65,13 +123,7 @@ export interface Customer extends BaseEntity {
   
   // Practice info
   primary_accounting_contact_id?: string
-  primary_accounting_contact?: {
-    id: string
-    email: string
-    first_name?: string
-    last_name?: string
-    full_name: string
-  }
+  primary_accounting_contact?: UserSummary
   acting_from?: string
   
   // MLR info
@@ -87,13 +139,7 @@ export interface Customer extends BaseEntity {
   setup_date?: string
   last_edited?: string
   last_edited_by_id?: string
-  last_edited_by?: {
-    id: string
-    email: string
-    first_name?: string
-    last_name?: string
-    full_name: string
-  }
+  last_edited_by?: UserSummary
   
   // Related data
   client_associations: Array<{
@@ -180,13 +226,44 @@ export interface CustomerClientAssociationWithClient {
   client: Client
 }
 
-// Individual summary for tab responses
+// Individual summary for tab responses - expanded with all backend fields
 export interface IndividualSummary {
   id: string
   first_name: string
   last_name: string
   full_name: string
+  title?: string
+  middle_name?: string
+  
+  // Personal details
+  date_of_birth?: string
+  deceased_date?: string
+  is_deceased?: boolean
+  marital_status?: string
+  gender?: string
+  nationality?: string
+  
+  // Contact information
   email?: string
+  secondary_email?: string
+  primary_mobile?: string
+  secondary_mobile?: string
+  
+  // Address
+  address_line_1?: string
+  address_line_2?: string
+  town?: string
+  county?: string
+  country?: string
+  post_code?: string
+  
+  // System fields
+  setup_date?: string
+  last_edited?: string
+  last_edited_by_id?: string
+  last_edited_by?: UserSummary
+  
+  // Related data
   incomes: Income[]
   properties: Property[]
 }
@@ -204,6 +281,14 @@ export interface CustomerInfoTabResponse {
   primary_accounting_contact_id?: string
   primary_accounting_contact?: UserSummary
   acting_from?: string
+  
+  // MLR info
+  mlr_status: string
+  mlr_date_complete?: string
+  passport_number?: string
+  driving_license?: string
+  uk_home_telephone?: string
+  
   comments?: string
   notes?: string
   setup_date?: string

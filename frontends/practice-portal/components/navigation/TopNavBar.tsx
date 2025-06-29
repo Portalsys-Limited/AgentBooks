@@ -11,7 +11,8 @@ import {
   ArrowRightOnRectangleIcon,
   UserIcon,
   BuildingOfficeIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline'
 import { search } from '../../lib/search/service'
 import { SearchResult } from '../../lib/search/types'
@@ -84,10 +85,16 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
   }
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 lg:px-8">
+    <nav className="bg-white shadow-sm border-b border-gray-200 px-2 sm:px-4 lg:px-6">
       <div className="flex justify-between h-16">
-        {/* Left side - Logo and branding */}
+        {/* Left side - Back button and Logo */}
         <div className="flex items-center">
+          <button
+            onClick={() => router.back()}
+            className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 mr-2"
+          >
+            <ArrowLeftIcon className="h-6 w-6" />
+          </button>
           <div className="flex items-center space-x-3">
           </div>
         </div>
