@@ -32,82 +32,83 @@ import CustomerLinkedClientsTab from './components/tabs/CustomerLinkedClientsTab
 
 interface CustomerDetail {
   id: string
-  name: string
-  first_name?: string
-  last_name?: string
-  title?: string
-  middle_name?: string
-  date_of_birth?: string
-  deceased_date?: string
-  marital_status?: string
-  gender?: string
-  nationality?: string
-  national_insurance_number?: string
+  practice_id: string
+  
+  // Individual relationship
+  individual_id: string
+  individual: {
+    id: string
+    first_name: string
+    last_name: string
+    full_name: string
+    email?: string
+    incomes: Array<{
+      id: string
+      income_type: string
+      income_amount: number
+      description?: string
+      created_at: string
+      updated_at?: string
+    }>
+    properties: Array<{
+      id: string
+      // Add property fields as needed
+    }>
+  }
+  
+  // Basic info
+  ni_number?: string
   personal_utr_number?: string
+  status: string
+  do_they_own_sa: boolean
+  sa_client_relation_id?: string
+  sa_client_relation?: {
+    id: string
+    business_name: string
+    trading_name?: string
+  }
   
-  // Contact Info
-  email?: string
-  secondary_email?: string
-  primary_mobile_number?: string
-  secondary_mobile_number?: string
-  uk_home_telephone_number?: string
+  // Practice info
+  primary_accounting_contact_id?: string
+  primary_accounting_contact?: {
+    id: string
+    email: string
+  }
+  acting_from?: string
   
-  // Address
-  address_line_1?: string
-  address_line_2?: string
-  town_city?: string
-  county?: string
-  postcode?: string
-  country?: string
+  // MLR info
+  mlr_status: string
+  mlr_date_complete?: string
+  passport_number?: string
+  driving_license?: string
+  uk_home_telephone?: string
   
-  // Core Info
-  customer_id?: string
-  client_code?: string
-  status?: string
-  setup_date?: string
-  last_edited_date?: string
-  last_edited_by?: string
+  // Additional info
   comments?: string
   notes?: string
-  relationship_type?: string
-  self_assessment_own?: boolean
-  self_assessment_client_relation?: string
-  
-  // Practice Info
-  primary_accounting_contact?: string
-  acting_from_date?: string
-  
-  // MLR Info
-  mlr_status?: string
-  mlr_date_completed?: string
-  passport_number?: string
-  driving_licence_number?: string
-  
-  // Income Info
-  rental_property?: boolean
-  income_relation?: string
-  self_employment_income_relation?: string
-  employment_income_relation?: string
-  rental_income?: number
-  dividend_income?: number
-  pension_income?: number
-  foreign_income?: number
-  state_benefit_income?: number
-  child_benefit?: number
-  tax_universal_credits?: number
-  capital_gains_income?: number
-  
-  // Linked clients
-  linked_clients?: Array<{
+  setup_date?: string
+  last_edited?: string
+  last_edited_by_id?: string
+  last_edited_by?: {
     id: string
-    name: string
-    business_type?: string
-    status?: string
-    created_at?: string
-  }>
+    email: string
+  }
   
-  created_at?: string
+  // System fields
+  created_at: string
   updated_at?: string
+  
+  // Related data
+  client_associations: Array<{
+    id: string
+    client: {
+      id: string
+      business_name: string
+      trading_name?: string
+      status?: string
+      created_at?: string
+    }
+  }>
 }
 
 export default function CustomerDetailPage() {
@@ -193,7 +194,7 @@ export default function CustomerDetailPage() {
       case 'contact-info':
         return (
           <CustomerDetailContactInfoTab 
-            customer={customer} 
+            customer={customer.individual} 
             onFieldChange={handleFieldChange}
             isEditing={isEditing}
           />
@@ -201,7 +202,7 @@ export default function CustomerDetailPage() {
       case 'address':
         return (
           <CustomerDetailAddressTab 
-            customer={customer} 
+            customer={customer.individual} 
             onFieldChange={handleFieldChange}
             isEditing={isEditing}
           />
@@ -225,7 +226,7 @@ export default function CustomerDetailPage() {
       case 'income-info':
         return (
           <CustomerDetailIncomeInfoTab 
-            customer={customer} 
+            customer={customer.individual} 
             onFieldChange={handleFieldChange}
             isEditing={isEditing}
           />
@@ -300,10 +301,8 @@ export default function CustomerDetailPage() {
                 <UserIcon className="h-8 w-8 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{customer.name}</h1>
-                {customer.first_name && customer.last_name && (
-                  <p className="text-lg text-gray-500">{customer.first_name} {customer.last_name}</p>
-                )}
+                <h1 className="text-3xl font-bold text-gray-900">{customer.individual.full_name}</h1>
+                <p className="text-lg text-gray-500">{customer.individual.first_name} {customer.individual.last_name}</p>
                 <p className="text-sm text-gray-400">Customer ID: {customer.id}</p>
               </div>
             </div>
