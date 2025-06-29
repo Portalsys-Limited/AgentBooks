@@ -550,6 +550,21 @@ async def create_sample_data():
                     "bedrooms": "2",
                     "bathrooms": "1",
                     "is_rental_property": False
+                },
+                # Tech Hub Office
+                {
+                    "property_name": "Tech Hub Office",
+                    "property_type": PropertyType.commercial,
+                    "property_status": PropertyStatus.owned,
+                    "address_line_1": "42 Innovation Street",
+                    "town": "London",
+                    "post_code": "EC2A 4DP",
+                    "country": "United Kingdom",
+                    "purchase_price": Decimal("350000"),
+                    "current_value": Decimal("425000"),
+                    "property_size": "1200 sq ft",
+                    "is_rental_property": False,
+                    "description": "Modern tech office space with open plan layout and meeting rooms"
                 }
             ]
             
@@ -673,6 +688,15 @@ async def create_sample_data():
                     "ownership_percentage": Decimal("50.00"),
                     "start_date": datetime(2020, 6, 1),
                     "description": "Shared ownership property"
+                },
+                {
+                    "property_idx": 7,
+                    "individual_idx": 0,  # Nyal
+                    "ownership_type": OwnershipType.sole_owner,
+                    "ownership_percentage": Decimal("100.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2021, 9, 1),
+                    "description": "Commercial office for tech consultancy business"
                 }
             ]
             
