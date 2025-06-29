@@ -9,9 +9,16 @@ import logging
 from config.database import get_db
 from db.models import Customer, Individual, Income, Property, CustomerClientAssociation
 from db.models.customer import CustomerStatus, MLRStatus
+from db.models.individual_relationship import IndividualRelationship
 from db.schemas.customer import (
     CustomerCreateRequest, CustomerUpdateRequest,
     CustomerResponse, CustomerListItem
+)
+from db.schemas.customer_tabs import (
+    CustomerInfoTabResponse,
+    CustomerMLRTabResponse,
+    CustomerRelationshipsTabResponse,
+    CustomerDocumentsTabResponse
 )
 from db.schemas.income import IncomeCreateRequest, IncomeUpdateRequest, IncomeResponse
 from db.schemas.property import PropertyCreateRequest, PropertyUpdateRequest, PropertyResponse
@@ -449,4 +456,99 @@ async def create_customer_client_association(
     db.add(association)
     await db.commit()
     await db.refresh(association)
-    return association 
+    return association
+
+
+# Tab-specific endpoints
+@router.get("/{customer_id}/info", response_model=CustomerInfoTabResponse)
+async def get_customer_info(
+    customer_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserSchema = Depends(get_current_user)
+):
+    """Get customer info tab data"""
+    query = select(Customer).options(
+        selectinload(Customer.individual),
+        selectinload(Customer.primary_accounting_contact),
+        selectinload(Customer.last_edited_by)
+    ).where(Customer.id == customer_id)
+    
+    result = await db.execute(query)
+    customer = result.scalar_one_or_none()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    return customer
+
+@router.get("/{customer_id}/mlr", response_model=CustomerMLRTabResponse)
+async def get_customer_mlr(
+    customer_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserSchema = Depends(get_current_user)
+):
+    """Get customer MLR tab data"""
+    query = select(Customer).options(
+        selectinload(Customer.individual),
+        selectinload(Customer.last_edited_by)
+    ).where(Customer.id == customer_id)
+    
+    result = await db.execute(query)
+    customer = result.scalar_one_or_none()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    return customer
+
+@router.get("/{customer_id}/relationships", response_model=CustomerRelationshipsTabResponse)
+async def get_customer_relationships(
+    customer_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserSchema = Depends(get_current_user)
+):
+    """Get customer relationships tab data"""
+    query = select(Customer).options(
+        selectinload(Customer.individual),
+        selectinload(Customer.client_associations).selectinload(CustomerClientAssociation.client)
+    ).where(Customer.id == customer_id)
+    
+    result = await db.execute(query)
+    customer = result.scalar_one_or_none()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Get individual relationships
+    individual_relationships_query = select(IndividualRelationship).where(
+        (IndividualRelationship.from_individual_id == customer.individual_id) |
+        (IndividualRelationship.to_individual_id == customer.individual_id)
+    )
+    individual_relationships_result = await db.execute(individual_relationships_query)
+    individual_relationships = individual_relationships_result.scalars().all()
+    
+    # Add individual relationships to the response
+    response = CustomerRelationshipsTabResponse.from_orm(customer)
+    response.individual_relationships = individual_relationships
+    
+    return response
+
+@router.get("/{customer_id}/documents", response_model=CustomerDocumentsTabResponse)
+async def get_customer_documents(
+    customer_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserSchema = Depends(get_current_user)
+):
+    """Get customer documents tab data"""
+    query = select(Customer).options(
+        selectinload(Customer.individual)
+    ).where(Customer.id == customer_id)
+    
+    result = await db.execute(query)
+    customer = result.scalar_one_or_none()
+    
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # TODO: Add document fetching logic once implemented
+    return customer 
