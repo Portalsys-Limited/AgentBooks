@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Dict
 from uuid import UUID
 
 from config.database import get_db
 from db.models import Individual, Income, Property
+from db.models.individuals import Gender, MaritalStatus
 from db.schemas import (
     IndividualCreateRequest, IndividualUpdateRequest, 
     IndividualResponse, IndividualListItem
@@ -246,4 +247,25 @@ async def create_individual_property(
     db.add(property_obj)
     await db.commit()
     await db.refresh(property_obj)
-    return property_obj 
+    return property_obj
+
+
+@router.get("/enums", response_model=Dict[str, List[Dict[str, str]]])
+async def get_individual_enums():
+    """Get all individual-related enum values"""
+    return {
+        "genders": [{"value": g.value, "label": g.value} for g in Gender],
+        "marital_statuses": [{"value": m.value, "label": m.value.replace("_", " ").title()} for m in MaritalStatus]
+    }
+
+
+@router.get("/enums/genders", response_model=List[Dict[str, str]])
+async def get_genders():
+    """Get all gender options"""
+    return [{"value": g.value, "label": g.value} for g in Gender]
+
+
+@router.get("/enums/marital-statuses", response_model=List[Dict[str, str]])
+async def get_marital_statuses():
+    """Get all marital status options"""
+    return [{"value": m.value, "label": m.value.replace("_", " ").title()} for m in MaritalStatus] 
