@@ -34,7 +34,8 @@ async def get_customers(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
     
     query = select(Customer).options(
-        selectinload(Customer.individual)
+        selectinload(Customer.individual).selectinload(Individual.incomes),
+        selectinload(Customer.individual).selectinload(Individual.properties)
     ).filter(Customer.practice_id == current_user.practice_id)
     
     result = await db.execute(query)
@@ -60,9 +61,8 @@ async def get_customer(
     customer_query = (
         select(Customer)
         .options(
-            selectinload(Customer.individual),
-            selectinload(Customer.incomes),
-            selectinload(Customer.properties),
+            selectinload(Customer.individual).selectinload(Individual.incomes),
+            selectinload(Customer.individual).selectinload(Individual.properties),
             selectinload(Customer.client_associations).selectinload(CustomerClientAssociation.client),
             selectinload(Customer.primary_accounting_contact),
             selectinload(Customer.last_edited_by),
@@ -272,7 +272,7 @@ async def get_customer_incomes(
     current_user: UserSchema = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all incomes for a customer"""
+    """Get all incomes for a customer's individual"""
     # Verify customer exists and belongs to practice
     customer = await db.execute(
         select(Customer).where(
@@ -285,7 +285,7 @@ async def get_customer_incomes(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
     
     result = await db.execute(
-        select(Income).where(Income.customer_id == customer_id)
+        select(Income).where(Income.individual_id == customer.individual_id)
     )
     return result.scalars().all()
 
@@ -297,7 +297,7 @@ async def create_customer_income(
     current_user: UserSchema = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Add income to customer"""
+    """Add income to customer's individual"""
     # Verify customer exists and belongs to practice
     customer = await db.execute(
         select(Customer).where(
@@ -309,9 +309,9 @@ async def create_customer_income(
     if not customer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
     
-    # Override customer_id from URL
+    # Override individual_id from customer's individual
     income_data = request.dict()
-    income_data["customer_id"] = customer_id
+    income_data["individual_id"] = customer.individual_id
     
     income = Income(**income_data)
     db.add(income)
@@ -326,7 +326,7 @@ async def get_customer_properties(
     current_user: UserSchema = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all properties for a customer"""
+    """Get all properties for a customer's individual"""
     # Verify customer exists and belongs to practice
     customer = await db.execute(
         select(Customer).where(
@@ -339,7 +339,7 @@ async def get_customer_properties(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
     
     result = await db.execute(
-        select(Property).where(Property.customer_id == customer_id)
+        select(Property).where(Property.individual_id == customer.individual_id)
     )
     return result.scalars().all()
 
@@ -351,7 +351,7 @@ async def create_customer_property(
     current_user: UserSchema = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Add property to customer"""
+    """Add property to customer's individual"""
     # Verify customer exists and belongs to practice
     customer = await db.execute(
         select(Customer).where(
@@ -363,9 +363,9 @@ async def create_customer_property(
     if not customer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
     
-    # Override customer_id from URL
+    # Override individual_id from customer's individual
     property_data = request.dict()
-    property_data["customer_id"] = customer_id
+    property_data["individual_id"] = customer.individual_id
     
     property_obj = Property(**property_data)
     db.add(property_obj)

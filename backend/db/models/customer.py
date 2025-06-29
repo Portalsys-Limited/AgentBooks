@@ -65,8 +65,6 @@ class Customer(Base):
     primary_accounting_contact = relationship("User", foreign_keys=[primary_accounting_contact_id])
     last_edited_by = relationship("User", foreign_keys=[last_edited_by_id])
     sa_client_relation = relationship("Client", foreign_keys=[sa_client_relation_id])
-    incomes = relationship("Income", back_populates="customer", cascade="all, delete-orphan")
-    properties = relationship("Property", back_populates="customer", cascade="all, delete-orphan")
     client_associations = relationship("CustomerClientAssociation", back_populates="customer")
     documents = relationship("Document", back_populates="customer")
     

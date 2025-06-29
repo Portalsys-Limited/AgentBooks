@@ -31,8 +31,8 @@ class Property(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     
-    # Foreign key to customer
-    customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False, index=True)
+    # Foreign key to individual
+    individual_id = Column(UUID(as_uuid=True), ForeignKey("individuals.id"), nullable=False, index=True)
     
     # Property details
     property_name = Column(String, nullable=False, index=True)  # Name or identifier
@@ -73,10 +73,10 @@ class Property(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    customer = relationship("Customer", back_populates="properties")
+    individual = relationship("Individual", back_populates="properties")
     
     def __repr__(self):
-        return f"<Property(id={self.id}, customer_id={self.customer_id}, name='{self.property_name}', type='{self.property_type}')>"
+        return f"<Property(id={self.id}, individual_id={self.individual_id}, name='{self.property_name}', type='{self.property_type}')>"
     
     @property
     def full_address(self):
