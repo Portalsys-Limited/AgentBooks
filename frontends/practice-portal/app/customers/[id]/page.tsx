@@ -3,113 +3,25 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '../../../components/layout/AppLayout'
+import SecondaryTopNavBar, { CUSTOMER_TABS } from '../../../components/navigation/SecondaryTopNavBar'
 import { useAuth } from '../../../hooks/useAuth'
 import { 
-  UserIcon, 
-  EnvelopeIcon,
-  PhoneIcon,
-  MapPinIcon,
-  BuildingOfficeIcon,
-  CalendarIcon,
-  PencilIcon,
   ArrowLeftIcon,
-  IdentificationIcon,
-  BanknotesIcon,
-  ShieldCheckIcon,
-  CurrencyPoundIcon,
-  DocumentTextIcon
+  UserIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline'
 
-// Import customer detail tab components
-import CustomerDetailCoreInfoTab from './components/tabs/CustomerDetailCoreInfoTab'
-import CustomerDetailBasicInfoTab from './components/tabs/CustomerDetailBasicInfoTab'
-import CustomerDetailContactInfoTab from './components/tabs/CustomerDetailContactInfoTab'
-import CustomerDetailAddressTab from './components/tabs/CustomerDetailAddressTab'
-import CustomerDetailPracticeInfoTab from './components/tabs/CustomerDetailPracticeInfoTab'
-import CustomerDetailMLRInfoTab from './components/tabs/CustomerDetailMLRInfoTab'
-import CustomerDetailIncomeInfoTab from './components/tabs/CustomerDetailIncomeInfoTab'
-import CustomerLinkedClientsTab from './components/tabs/CustomerLinkedClientsTab'
+// Import tab components
+import CustomerInformationTab from './components/CustomerInformationTab'
+import CustomerTasksTab from './components/CustomerTasksTab'
+import CustomerCommunicationTab from './components/CustomerCommunicationTab'
+import CustomerDocumentsTab from './components/CustomerDocumentsTab'
+import CustomerMLRTab from './components/CustomerMLRTab'
+import CustomerRelationshipsTab from './components/CustomerRelationshipsTab'
 
-interface CustomerDetail {
-  id: string
-  practice_id: string
-  
-  // Individual relationship
-  individual_id: string
-  individual: {
-    id: string
-    first_name: string
-    last_name: string
-    full_name: string
-    email?: string
-    incomes: Array<{
-      id: string
-      income_type: string
-      income_amount: number
-      description?: string
-      created_at: string
-      updated_at?: string
-    }>
-    properties: Array<{
-      id: string
-      // Add property fields as needed
-    }>
-  }
-  
-  // Basic info
-  ni_number?: string
-  personal_utr_number?: string
-  status: string
-  do_they_own_sa: boolean
-  sa_client_relation_id?: string
-  sa_client_relation?: {
-    id: string
-    business_name: string
-    trading_name?: string
-  }
-  
-  // Practice info
-  primary_accounting_contact_id?: string
-  primary_accounting_contact?: {
-    id: string
-    email: string
-  }
-  acting_from?: string
-  
-  // MLR info
-  mlr_status: string
-  mlr_date_complete?: string
-  passport_number?: string
-  driving_license?: string
-  uk_home_telephone?: string
-  
-  // Additional info
-  comments?: string
-  notes?: string
-  setup_date?: string
-  last_edited?: string
-  last_edited_by_id?: string
-  last_edited_by?: {
-    id: string
-    email: string
-  }
-  
-  // System fields
-  created_at: string
-  updated_at?: string
-  
-  // Related data
-  client_associations: Array<{
-    id: string
-    client: {
-      id: string
-      business_name: string
-      trading_name?: string
-      status?: string
-      created_at?: string
-    }
-  }>
-}
+// Import customer service
+import { getCustomerInfo } from '../../../lib/customers/service'
+import { CustomerInfoTabResponse } from '../../../lib/customers/types'
 
 export default function CustomerDetailPage() {
   const { user } = useAuth()
@@ -117,22 +29,10 @@ export default function CustomerDetailPage() {
   const params = useParams()
   const customerId = params.id as string
   
-  const [customer, setCustomer] = useState<CustomerDetail | null>(null)
+  const [customer, setCustomer] = useState<CustomerInfoTabResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('core-info')
-  const [isEditing, setIsEditing] = useState(false)
-
-  const tabs = [
-    { id: 'core-info', name: 'Core Info', icon: IdentificationIcon },
-    { id: 'basic-info', name: 'Basic Info', icon: UserIcon },
-    { id: 'contact-info', name: 'Contact Info', icon: PhoneIcon },
-    { id: 'address', name: 'Address', icon: MapPinIcon },
-    { id: 'practice-info', name: 'Practice Info', icon: DocumentTextIcon },
-    { id: 'mlr-info', name: 'MLR Info', icon: ShieldCheckIcon },
-    { id: 'income-info', name: 'Income Info', icon: CurrencyPoundIcon },
-    { id: 'linked-clients', name: 'Linked Clients', icon: BuildingOfficeIcon }
-  ]
+  const [activeTab, setActiveTab] = useState('information')
 
   useEffect(() => {
     if (customerId) {
@@ -142,9 +42,9 @@ export default function CustomerDetailPage() {
 
   const fetchCustomer = async () => {
     try {
-      // ✅ Use new service function
-      const { getCustomer } = await import('../../../lib/customers')
-      const data = await getCustomer(customerId)
+      setLoading(true)
+      setError(null)
+      const data = await getCustomerInfo(customerId)
       setCustomer(data)
     } catch (err) {
       console.error('Error fetching customer:', err)
@@ -154,100 +54,39 @@ export default function CustomerDetailPage() {
     }
   }
 
-  const handleFieldChange = (key: string, value: string | boolean | number) => {
-    if (customer) {
-      setCustomer(prev => ({
-        ...prev!,
-        [key]: value,
-        last_edited_date: new Date().toISOString(),
-        last_edited_by: user?.email || user?.name
-      }))
-    }
-  }
-
-  const handleSave = async () => {
-    // TODO: Implement customer update API call
-    console.log('Saving customer:', customer)
-    setIsEditing(false)
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId)
   }
 
   const renderTabContent = () => {
     if (!customer) return null
 
     switch (activeTab) {
-      case 'core-info':
-        return (
-          <CustomerDetailCoreInfoTab 
-            customer={customer} 
-            onFieldChange={handleFieldChange}
-            isEditing={isEditing}
-          />
-        )
-      case 'basic-info':
-        return (
-          <CustomerDetailBasicInfoTab 
-            customer={customer} 
-            onFieldChange={handleFieldChange}
-            isEditing={isEditing}
-          />
-        )
-      case 'contact-info':
-        return (
-          <CustomerDetailContactInfoTab 
-            customer={customer.individual} 
-            onFieldChange={handleFieldChange}
-            isEditing={isEditing}
-          />
-        )
-      case 'address':
-        return (
-          <CustomerDetailAddressTab 
-            customer={customer.individual} 
-            onFieldChange={handleFieldChange}
-            isEditing={isEditing}
-          />
-        )
-      case 'practice-info':
-        return (
-          <CustomerDetailPracticeInfoTab 
-            customer={customer} 
-            onFieldChange={handleFieldChange}
-            isEditing={isEditing}
-          />
-        )
-      case 'mlr-info':
-        return (
-          <CustomerDetailMLRInfoTab 
-            customer={customer} 
-            onFieldChange={handleFieldChange}
-            isEditing={isEditing}
-          />
-        )
-      case 'income-info':
-        return (
-          <CustomerDetailIncomeInfoTab 
-            customer={customer.individual} 
-            onFieldChange={handleFieldChange}
-            isEditing={isEditing}
-          />
-        )
-      case 'linked-clients':
-        return (
-          <CustomerLinkedClientsTab 
-            customer={customer} 
-            onRefresh={fetchCustomer}
-          />
-        )
+      case 'information':
+        return <CustomerInformationTab customerId={customerId} />
+      case 'tasks':
+        return <CustomerTasksTab customerId={customerId} />
+      case 'communication':
+        return <CustomerCommunicationTab customerId={customerId} />
+      case 'documents':
+        return <CustomerDocumentsTab customerId={customerId} />
+      case 'mlr':
+        return <CustomerMLRTab customerId={customerId} />
+      case 'relationships':
+        return <CustomerRelationshipsTab customerId={customerId} />
       default:
-        return null
+        return <CustomerInformationTab customerId={customerId} />
     }
   }
 
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading customer details...</p>
+          </div>
         </div>
       </AppLayout>
     )
@@ -257,19 +96,30 @@ export default function CustomerDetailPage() {
     return (
       <AppLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex">
-              <div className="ml-3">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
                 <h3 className="text-sm font-medium text-red-800">Error Loading Customer</h3>
                 <div className="mt-2 text-sm text-red-700">
                   <p>{error || 'Customer not found'}</p>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex space-x-3">
                   <button
-                    onClick={() => router.push('/search_client_customer')}
-                    className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200"
+                    onClick={fetchCustomer}
+                    className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200 transition-colors"
                   >
-                    Back to Customers & Clients
+                    Try Again
+                  </button>
+                  <button
+                    onClick={() => router.push('/customers')}
+                    className="bg-white px-3 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
+                  >
+                    Back to Customers
                   </button>
                 </div>
               </div>
@@ -282,88 +132,72 @@ export default function CustomerDetailPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <button
-              onClick={() => router.back()}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <ArrowLeftIcon className="h-4 w-4 mr-1" />
-              Back
-            </button>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
-                <UserIcon className="h-8 w-8 text-blue-600" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{customer.individual.full_name}</h1>
-                <p className="text-lg text-gray-500">{customer.individual.first_name} {customer.individual.last_name}</p>
-                <p className="text-sm text-gray-400">Customer ID: {customer.id}</p>
-              </div>
+      <div className="min-h-screen bg-gray-50">
+        {/* Customer Header */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Breadcrumb */}
+            <div className="flex items-center space-x-2 mb-4">
+              <button
+                onClick={() => router.back()}
+                className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <ArrowLeftIcon className="h-4 w-4 mr-1" />
+                Back
+              </button>
+              <span className="text-gray-300">/</span>
+              <span className="text-sm text-gray-500">Customers</span>
+              <span className="text-gray-300">/</span>
+              <span className="text-sm font-medium text-gray-900">{customer.individual.full_name}</span>
             </div>
-            <div className="flex space-x-3">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    Save Changes
-                  </button>
-                </>
-              ) : (
+            
+            {/* Customer Profile Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                  {customer.individual.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{customer.individual.full_name}</h1>
+                  <div className="flex items-center space-x-4 mt-1">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      customer.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                    </span>
+                    <span className="text-sm text-gray-500">Customer ID: {customer.id}</span>
+                    {customer.individual.email && (
+                      <span className="text-sm text-gray-500">{customer.individual.email}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3">
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setActiveTab('information')}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                 >
                   <PencilIcon className="h-4 w-4 mr-2" />
                   Edit Customer
                 </button>
-              )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
-              {tabs.map((tab) => {
-                const Icon = tab.icon
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`${
-                      activeTab === tab.id
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
-                    data-reactid={`tab-${tab.id}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span>{tab.name}</span>
-                  </button>
-                )
-              })}
-            </nav>
-          </div>
+        {/* Secondary Navigation */}
+        <SecondaryTopNavBar
+          tabs={CUSTOMER_TABS}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+        />
 
-          {/* Tab Content */}
-          <div className="p-6">
-            {renderTabContent()}
-          </div>
+        {/* Tab Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {renderTabContent()}
         </div>
       </div>
     </AppLayout>
