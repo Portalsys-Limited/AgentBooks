@@ -36,11 +36,6 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
         {/* Left side - Logo and branding */}
         <div className="flex items-center">
           <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Practice Portal
-              </h1>
-            </div>
           </div>
         </div>
 
