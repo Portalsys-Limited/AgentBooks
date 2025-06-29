@@ -75,11 +75,11 @@ class Individual(Base):
     
     # Individual relationships
     relationships_from = relationship("IndividualRelationship", 
-                                   foreign_keys="IndividualRelationship.from_individual_id",
+                                   foreign_keys="[IndividualRelationship.from_individual_id]",
                                    back_populates="from_individual",
                                    cascade="all, delete-orphan")
     relationships_to = relationship("IndividualRelationship",
-                                 foreign_keys="IndividualRelationship.to_individual_id",
+                                 foreign_keys="[IndividualRelationship.to_individual_id]",
                                  back_populates="to_individual",
                                  cascade="all, delete-orphan")
     

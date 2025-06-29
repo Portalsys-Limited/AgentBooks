@@ -17,13 +17,15 @@ from config.settings import settings
 from db.models.base import Base  # Import Base to access metadata
 from db.models import (
     Practice, User, Individual, Customer, Client, CustomerClientAssociation, 
-    Service, ClientService, Income, Property, UserRole, BusinessType
+    Service, ClientService, Income, Property, UserRole, BusinessType,
+    IndividualRelationship
 )
 from db.models.individuals import Gender, MaritalStatus
 from db.models.customer import MLRStatus, CustomerStatus
 from db.models.income import IncomeType
 from db.models.property import PropertyType, PropertyStatus
 from db.models.customer_client_association import RelationshipType
+from db.models.individual_relationship import IndividualRelationType
 from services.auth_service import get_password_hash
 
 async def create_sample_data():
@@ -217,6 +219,76 @@ async def create_sample_data():
             
             await db.flush()
             print(f"✅ Created {len(individuals)} individuals")
+            
+            # Create Individual Relationships
+            individual_relationships_data = [
+                # Family relationships for Nyal, Ashani, and Siyan
+                {
+                    "from_idx": 0,  # Nyal
+                    "to_idx": 1,    # Ashani
+                    "type": IndividualRelationType.spouse,
+                    "description": "Married since 2010"
+                },
+                {
+                    "from_idx": 0,  # Nyal
+                    "to_idx": 2,    # Siyan
+                    "type": IndividualRelationType.parent,
+                    "description": "Father"
+                },
+                {
+                    "from_idx": 1,  # Ashani
+                    "to_idx": 2,    # Siyan
+                    "type": IndividualRelationType.parent,
+                    "description": "Mother"
+                },
+                
+                # Harrison and Sarah Bernstein
+                {
+                    "from_idx": 5,  # Harrison
+                    "to_idx": 6,    # Sarah
+                    "type": IndividualRelationType.spouse,
+                    "description": "Married since 2005"
+                },
+                
+                # David and Emma Beckfield
+                {
+                    "from_idx": 7,  # David
+                    "to_idx": 8,    # Emma
+                    "type": IndividualRelationType.partner,
+                    "description": "Civil Partnership since 2015"
+                },
+                
+                # Business relationships
+                {
+                    "from_idx": 3,  # Alice
+                    "to_idx": 4,    # Robert
+                    "type": IndividualRelationType.friend,
+                    "description": "Business partners and friends"
+                },
+                
+                # Extended family relationships
+                {
+                    "from_idx": 5,  # Harrison
+                    "to_idx": 0,    # Nyal
+                    "type": IndividualRelationType.cousin,
+                    "description": "Second cousins, tech advisor"
+                }
+            ]
+            
+            individual_relationships = []
+            for rel_data in individual_relationships_data:
+                relationship = IndividualRelationship(
+                    from_individual_id=individuals[rel_data["from_idx"]].id,
+                    to_individual_id=individuals[rel_data["to_idx"]].id,
+                    relationship_type=rel_data["type"],
+                    description=rel_data["description"],
+                    practice_id=practice.id
+                )
+                db.add(relationship)
+                individual_relationships.append(relationship)
+            
+            await db.flush()
+            print(f"✅ Created {len(individual_relationships)} individual relationships")
             
             # Create Customers linked to individuals
             customers_data = [
