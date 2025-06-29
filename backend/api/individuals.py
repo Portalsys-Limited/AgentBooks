@@ -12,8 +12,8 @@ from db.schemas import (
     IndividualCreateRequest, IndividualUpdateRequest, 
     IndividualResponse, IndividualListItem
 )
-from db.schemas.income import IncomeCreateRequest, IncomeResponse
-from db.schemas.property import PropertyCreateRequest, PropertyResponse
+from db.schemas.income import IncomeCreateRequest, IncomeResponse, IncomeUpdateRequest
+from db.schemas.property import PropertyCreateRequest, PropertyResponse, PropertyUpdateRequest
 from db.schemas.individual_relationship import (
     IndividualRelationshipCreate, IndividualRelationshipUpdate,
     IndividualRelationshipResponse
@@ -407,4 +407,154 @@ async def delete_individual_relationship(
 @router.get("/enums/relationship-types", response_model=List[Dict[str, str]])
 async def get_relationship_types():
     """Get all relationship type options"""
-    return [{"value": r.value, "label": r.value.replace("_", " ").title()} for r in IndividualRelationType] 
+    return [{"value": r.value, "label": r.value.replace("_", " ").title()} for r in IndividualRelationType]
+
+
+@router.put("/{individual_id}/incomes/{income_id}", response_model=IncomeResponse)
+async def update_individual_income(
+    individual_id: UUID,
+    income_id: UUID,
+    request: IncomeUpdateRequest,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update an income record for an individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    # Get the income record
+    income = await db.execute(
+        select(Income).where(
+            Income.id == income_id,
+            Income.individual_id == individual_id
+        )
+    )
+    income = income.scalar_one_or_none()
+    if not income:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Income record not found")
+    
+    # Update income fields
+    for field, value in request.dict(exclude_unset=True).items():
+        setattr(income, field, value)
+    
+    await db.commit()
+    await db.refresh(income)
+    return income
+
+
+@router.put("/{individual_id}/properties/{property_id}", response_model=PropertyResponse)
+async def update_individual_property(
+    individual_id: UUID,
+    property_id: UUID,
+    request: PropertyUpdateRequest,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a property record for an individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    # Get the property record
+    property_obj = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.individual_id == individual_id
+        )
+    )
+    property_obj = property_obj.scalar_one_or_none()
+    if not property_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property record not found")
+    
+    # Update property fields
+    for field, value in request.dict(exclude_unset=True).items():
+        setattr(property_obj, field, value)
+    
+    await db.commit()
+    await db.refresh(property_obj)
+    return property_obj
+
+
+@router.delete("/{individual_id}/incomes/{income_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_individual_income(
+    individual_id: UUID,
+    income_id: UUID,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete an income record for an individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    # Get the income record
+    income = await db.execute(
+        select(Income).where(
+            Income.id == income_id,
+            Income.individual_id == individual_id
+        )
+    )
+    income = income.scalar_one_or_none()
+    if not income:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Income record not found")
+    
+    # Delete the income record
+    await db.delete(income)
+    await db.commit()
+
+
+@router.delete("/{individual_id}/properties/{property_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_individual_property(
+    individual_id: UUID,
+    property_id: UUID,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a property record for an individual"""
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    # Get the property record
+    property_obj = await db.execute(
+        select(Property).where(
+            Property.id == property_id,
+            Property.individual_id == individual_id
+        )
+    )
+    property_obj = property_obj.scalar_one_or_none()
+    if not property_obj:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property record not found")
+    
+    # Delete the property record
+    await db.delete(property_obj)
+    await db.commit() 
