@@ -29,8 +29,8 @@ class IndividualRelationship(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     
     # Foreign keys for the relationship
-    from_individual_id = Column(UUID(as_uuid=True), ForeignKey("individuals.id"), nullable=False, index=True)
-    to_individual_id = Column(UUID(as_uuid=True), ForeignKey("individuals.id"), nullable=False, index=True)
+    from_individual_id = Column(UUID(as_uuid=True), ForeignKey("individuals.id", ondelete="CASCADE"), nullable=False, index=True)
+    to_individual_id = Column(UUID(as_uuid=True), ForeignKey("individuals.id", ondelete="CASCADE"), nullable=False, index=True)
     
     # Relationship details
     relationship_type = Column(SQLEnum(IndividualRelationType), nullable=False)
