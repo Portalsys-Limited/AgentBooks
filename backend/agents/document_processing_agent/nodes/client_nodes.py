@@ -10,7 +10,7 @@ import urllib.parse
 
 from db.models import Document, Individual, Customer, Client, CustomerClientAssociation, Practice
 from services.twilio_service import twilio_service
-from .states import AgentState, CLIENT_REQUIRED_CATEGORIES, ClientInfo
+from ..states import AgentState, CLIENT_REQUIRED_CATEGORIES, ClientInfo
 
 def load_available_clients(db_session: Session, individual_id: str) -> List[ClientInfo]:
     """Load all clients available to an individual through their customer relationships."""
@@ -55,7 +55,7 @@ def check_client_assignment_node(state: AgentState, db_session: Session) -> Agen
         return state
     
     try:
-        # Load document to get individual_id
+        # Load document to get individual_id and check if client is already assigned
         document = db_session.execute(
             select(Document).where(Document.id == state["document_id"])
         ).scalar_one_or_none()
@@ -63,6 +63,18 @@ def check_client_assignment_node(state: AgentState, db_session: Session) -> Agen
         if not document or not document.individual_id:
             print("No individual associated with document")
             state["current_node"] = "end"
+            return state
+        
+        # Check if document already has a client assigned
+        if document.client_id:
+            print(f"Document already has client assigned: {document.client_id}")
+            # If it's an invoice or receipt, go directly to invoice processing
+            if category in ["invoice", "receipt"]:
+                print(f"Document is a {category}, proceeding to invoice processing")
+                state["current_node"] = "process_invoice"
+            else:
+                print("Document already processed, ending workflow")
+                state["current_node"] = "end"
             return state
         
         # Store individual_id in state
@@ -240,11 +252,16 @@ def assign_single_client_node(state: AgentState, db_session: Session) -> AgentSt
             db_session.commit()
             print(f"Document assigned to client {client_info['client_name']}")
             
+            # Check if this is an invoice or receipt that needs further processing
+            if state["classification_result"]["document_category"] in ["invoice", "receipt"]:
+                state["current_node"] = "process_invoice"
+            else:
+                state["current_node"] = "end"
+            
     except Exception as e:
         if db_session.in_transaction():
             db_session.rollback()
         print(f"Error in assign_single_client_node: {str(e)}")
         raise
     
-    state["current_node"] = "end"
     return state 

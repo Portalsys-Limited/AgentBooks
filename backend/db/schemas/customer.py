@@ -2,15 +2,38 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
 from uuid import UUID
+from decimal import Decimal
 
 from db.models.customer import MLRStatus, CustomerStatus
 from db.schemas.individuals import IndividualCreateRequest
 
 # Import related schemas for nested responses
 from db.schemas.income import IncomeResponse
-from db.schemas.property import PropertyResponse
 from db.schemas.customer_client_association import CustomerClientAssociationWithClient
 
+# Property relationship summary for customer responses (to avoid circular imports)
+class PropertyRelationshipSummary(BaseModel):
+    id: UUID
+    ownership_type: str
+    ownership_percentage: Decimal
+    is_primary_owner: bool
+    start_date: datetime
+    end_date: Optional[datetime] = None
+    description: Optional[str] = None
+    
+    # Property summary
+    property_id: UUID
+    property_name: str
+    property_type: str
+    address_line_1: str
+    town: str
+    post_code: str
+    current_value: Optional[Decimal] = None
+    is_rental_property: bool = False
+    monthly_rental_income: Optional[Decimal] = None
+    
+    class Config:
+        from_attributes = True
 
 # User summary for relationships
 class UserSummary(BaseModel):
@@ -23,7 +46,6 @@ class UserSummary(BaseModel):
     class Config:
         from_attributes = True
 
-
 # Individual summary for customer responses
 class IndividualSummary(BaseModel):
     id: UUID
@@ -32,11 +54,10 @@ class IndividualSummary(BaseModel):
     full_name: str
     email: Optional[str] = None
     incomes: List[IncomeResponse] = []
-    properties: List[PropertyResponse] = []
+    property_relationships: List[PropertyRelationshipSummary] = []
     
     class Config:
         from_attributes = True
-
 
 # Client summary for SA client relation
 class ClientSummary(BaseModel):
@@ -47,12 +68,10 @@ class ClientSummary(BaseModel):
     class Config:
         from_attributes = True
 
-
 # Practice info for customer
 class PracticeInfo(BaseModel):
     primary_accounting_contact_id: Optional[UUID] = None
     acting_from: Optional[date] = None
-
 
 # MLR info for customer
 class MLRInfo(BaseModel):
@@ -61,7 +80,6 @@ class MLRInfo(BaseModel):
     passport_number: Optional[str] = None
     driving_license: Optional[str] = None
     uk_home_telephone: Optional[str] = None
-
 
 # Customer creation request - supports both new individual or existing
 class CustomerCreateRequest(BaseModel):
@@ -86,7 +104,6 @@ class CustomerCreateRequest(BaseModel):
     comments: Optional[str] = None
     notes: Optional[str] = None
 
-
 # Customer update request
 class CustomerUpdateRequest(BaseModel):
     # Basic customer info
@@ -106,7 +123,6 @@ class CustomerUpdateRequest(BaseModel):
     comments: Optional[str] = None
     notes: Optional[str] = None
 
-
 # Customer list item (summary view)
 class CustomerListItem(BaseModel):
     id: UUID
@@ -120,7 +136,6 @@ class CustomerListItem(BaseModel):
     
     class Config:
         from_attributes = True
-
 
 # Full customer response with all related data
 class CustomerResponse(BaseModel):
@@ -169,16 +184,13 @@ class CustomerResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 # Base schemas for backward compatibility
 class CustomerBase(BaseModel):
     individual_id: UUID
     status: CustomerStatus = CustomerStatus.active
 
-
 class CustomerCreate(CustomerBase):
     practice_id: UUID
-
 
 class Customer(CustomerBase):
     id: UUID

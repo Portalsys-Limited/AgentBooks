@@ -1,11 +1,12 @@
-"""Node definitions for document processing workflow."""
+"""Classification nodes for document processing workflow."""
 
 from typing import Dict, Any, List
+import json
 from langchain_openai import ChatOpenAI
 from langchain.tools import BaseTool
 from langchain_core.messages import HumanMessage
 
-from .states import AgentState, DOCUMENT_CATEGORIES
+from ..states import AgentState, DOCUMENT_CATEGORIES
 
 def classify_document_node(state: AgentState, llm: ChatOpenAI, tools: List[BaseTool]) -> AgentState:
     """Node for classifying documents."""
@@ -33,10 +34,17 @@ def classify_document_node(state: AgentState, llm: ChatOpenAI, tools: List[BaseT
     2. Look for key identifying features of each document type
     3. Consider the document's structure and content
     4. Choose the most appropriate category
-    5. Start your response with the category name in lowercase, followed by your explanation
-    
-    Example response format:
-    "invoice This appears to be an invoice because it contains line items, prices, and payment instructions..."
+    5. Provide a confidence score between 0.0 and 1.0
+    6. Return your response in JSON format only
+
+    Required JSON format:
+    {{
+        "document_category": "category_name",
+        "confidence": 0.95,
+        "explanation": "Detailed explanation of why this document belongs to this category, including specific features identified"
+    }}
+
+    Return only valid JSON, no additional text.
     """
     
     # Add classification request to messages
@@ -46,17 +54,38 @@ def classify_document_node(state: AgentState, llm: ChatOpenAI, tools: List[BaseT
     response = llm.invoke(state["messages"])
     state["messages"].append(response)
     
-    # Extract category from response (first word)
-    category = response.content.split()[0].lower()
-    if category not in DOCUMENT_CATEGORIES:
-        category = "other"
+    # Parse JSON response
+    try:
+        classification_data = json.loads(response.content.strip())
+        
+        # Validate and clean the category
+        category = classification_data.get("document_category", "other").lower()
+        if category not in DOCUMENT_CATEGORIES:
+            category = "other"
+        
+        # Ensure confidence is a float between 0 and 1
+        confidence = float(classification_data.get("confidence", 0.5))
+        confidence = max(0.0, min(1.0, confidence))
+        
+        explanation = classification_data.get("explanation", "No explanation provided")
+        
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        print(f"Error parsing JSON response: {e}")
+        print(f"Raw response: {response.content}")
+        
+        # Fallback to old method if JSON parsing fails
+        category = response.content.split()[0].lower() if response.content else "other"
+        if category not in DOCUMENT_CATEGORIES:
+            category = "other"
+        confidence = 0.5
+        explanation = response.content
     
     # Use tool to formalize classification
     classification_tool = tools[0]  # Get the classification tool
     classification = classification_tool.invoke({
         "document_category": category,
-        "confidence": 0.9,  # TODO: Implement proper confidence scoring
-        "explanation": response.content
+        "confidence": confidence,
+        "explanation": explanation
     })
     
     # Store classification result
