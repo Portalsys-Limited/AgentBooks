@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import AppLayout from '../../../components/layout/AppLayout'
 import SecondaryTopNavBar, { CUSTOMER_TABS } from '../../../components/navigation/SecondaryTopNavBar'
 import { CustomerInformationDisplay } from './components/CustomerDetailSection'
-import CustomerCommunicationTab from './components/CustomerCommunicationTab'
 import CustomerDocumentsTab from './components/CustomerDocumentsTab'
 import CustomerRelationshipsTab from './components/CustomerRelationshipsTab'
 import CustomerTasksTab from './components/CustomerTasksTab'
@@ -77,8 +76,9 @@ export default function CustomerDetailPage() {
         ...editedCustomer,
         individual: undefined, // Remove nested objects if backend expects flat structure
       }
-      const updatedCustomer = await updateCustomer(customerId, updatePayload)
-      setCustomer(updatedCustomer)
+      await updateCustomer(customerId, updatePayload)
+      // Re-fetch the customer info to ensure we have the correct type and latest data
+      await fetchCustomer()
       setIsEditing(false)
     } catch (error) {
       console.error('Error saving changes:', error)
@@ -125,8 +125,6 @@ export default function CustomerDetailPage() {
         )
       case 'tasks':
         return <CustomerTasksTab customerId={customerId} />
-      case 'communication':
-        return <CustomerCommunicationTab customerId={customerId} />
       case 'documents':
         return <CustomerDocumentsTab customerId={customerId} />
       case 'mlr':
@@ -208,7 +206,8 @@ export default function CustomerDetailPage() {
           name: customer.individual.full_name,
           id: customer.id,
           email: customer.individual.email,
-          status: 'Active'
+          status: 'Active',
+          individual_id: customer.individual_id
         }}
         actions={
           <>
