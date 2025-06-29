@@ -1,12 +1,35 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 from uuid import UUID
 
 from db.models.customer import MLRStatus, CustomerStatus
+from db.models.documents import DocumentType, DocumentSource, DocumentAgentState
 from db.schemas.customer import IndividualSummary, UserSummary, PracticeInfo
 from db.schemas.customer_client_association import CustomerClientAssociationWithClient
 from db.schemas.individual_relationship import IndividualRelationshipResponse
+
+# Document schema for responses
+class DocumentResponse(BaseModel):
+    id: UUID
+    filename: str
+    original_filename: Optional[str] = None
+    document_url: str
+    file_size: Optional[str] = None
+    mime_type: Optional[str] = None
+    document_type: DocumentType
+    document_source: DocumentSource
+    document_category: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
+    agent_state: DocumentAgentState
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    uploaded_by_user_id: Optional[UUID] = None
+    
+    class Config:
+        from_attributes = True
 
 # Info Tab Response
 class CustomerInfoTabResponse(BaseModel):
@@ -83,8 +106,8 @@ class CustomerDocumentsTabResponse(BaseModel):
     individual_id: UUID
     individual: IndividualSummary
     
-    # Document list will be added here once document functionality is implemented
-    documents: List[dict] = []  # Placeholder for future document schema
+    # Document list
+    documents: List[DocumentResponse] = []
     
     class Config:
         from_attributes = True 
