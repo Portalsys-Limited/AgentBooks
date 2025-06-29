@@ -68,10 +68,13 @@ def check_client_assignment_node(state: AgentState, db_session: Session) -> Agen
         # Check if document already has a client assigned
         if document.client_id:
             print(f"Document already has client assigned: {document.client_id}")
-            # If it's an invoice or receipt, go directly to invoice processing
-            if category in ["invoice", "receipt"]:
-                print(f"Document is a {category}, proceeding to invoice processing")
+            # Route to appropriate processing node based on document type
+            if category == "invoice":
+                print(f"Document is an {category}, proceeding to invoice processing")
                 state["current_node"] = "process_invoice"
+            elif category == "receipt":
+                print(f"Document is a {category}, proceeding to receipt processing")
+                state["current_node"] = "process_receipt"
             else:
                 print("Document already processed, ending workflow")
                 state["current_node"] = "end"
@@ -253,8 +256,11 @@ def assign_single_client_node(state: AgentState, db_session: Session) -> AgentSt
             print(f"Document assigned to client {client_info['client_name']}")
             
             # Check if this is an invoice or receipt that needs further processing
-            if state["classification_result"]["document_category"] in ["invoice", "receipt"]:
+            category = state["classification_result"]["document_category"]
+            if category == "invoice":
                 state["current_node"] = "process_invoice"
+            elif category == "receipt":
+                state["current_node"] = "process_receipt"
             else:
                 state["current_node"] = "end"
             

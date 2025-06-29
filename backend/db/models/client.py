@@ -268,6 +268,7 @@ class Client(Base):
     documents = relationship("Document", back_populates="client")
     services = relationship("ClientService", back_populates="client")
     invoices = relationship("Invoice", back_populates="client")
+    chart_of_accounts = relationship("ChartOfAccount", back_populates="client", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Client(id={self.id}, business_name='{self.business_name}', client_code='{self.client_code}')>"

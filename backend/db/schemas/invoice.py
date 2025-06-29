@@ -12,6 +12,8 @@ class InvoiceLineItemBase(BaseModel):
     quantity: int = 1
     unit_price: Decimal
     tax_rate: Decimal = Decimal('0.00')
+    account_id: Optional[UUID] = None
+    account_code: Optional[str] = None
 
 class InvoiceLineItemCreate(InvoiceLineItemBase):
     pass
@@ -21,6 +23,8 @@ class InvoiceLineItemUpdate(InvoiceLineItemBase):
     quantity: Optional[int] = None
     unit_price: Optional[Decimal] = None
     tax_rate: Optional[Decimal] = None
+    account_id: Optional[UUID] = None
+    account_code: Optional[str] = None
 
 class InvoiceLineItem(InvoiceLineItemBase):
     id: UUID
@@ -28,6 +32,8 @@ class InvoiceLineItem(InvoiceLineItemBase):
     tax_amount: Decimal
     subtotal: Decimal
     total: Decimal
+    account_id: Optional[UUID] = None
+    account_code: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     
