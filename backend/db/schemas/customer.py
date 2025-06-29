@@ -28,6 +28,8 @@ class IndividualSummary(BaseModel):
     last_name: str
     full_name: str
     email: Optional[str] = None
+    incomes: List[IncomeResponse] = []
+    properties: List[PropertyResponse] = []
     
     class Config:
         from_attributes = True
@@ -159,8 +161,6 @@ class CustomerResponse(BaseModel):
     updated_at: Optional[datetime] = None
     
     # Related data - all customer relations
-    incomes: List[IncomeResponse] = []
-    properties: List[PropertyResponse] = []
     client_associations: List[CustomerClientAssociationWithClient] = []
     
     class Config:

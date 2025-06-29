@@ -314,51 +314,51 @@ async def create_sample_data():
             await db.flush()
             print(f"✅ Created {len(customers)} customers")
             
-            # Create Incomes for customers
+            # Create Incomes for individuals (not customers)
             incomes_data = [
                 # Nyal's incomes
-                {"customer_idx": 0, "income_type": IncomeType.self_employment, "income_amount": Decimal("85000"), "description": "Technology Consulting Services"},
-                {"customer_idx": 0, "income_type": IncomeType.dividend, "income_amount": Decimal("15000"), "description": "Portalsys Ltd Dividends"},
-                {"customer_idx": 0, "income_type": IncomeType.rental, "income_amount": Decimal("18000"), "description": "Buy-to-let Property Rental"},
+                {"individual_idx": 0, "income_type": IncomeType.self_employment, "income_amount": Decimal("85000"), "description": "Technology Consulting Services"},
+                {"individual_idx": 0, "income_type": IncomeType.dividend, "income_amount": Decimal("15000"), "description": "Portalsys Ltd Dividends"},
+                {"individual_idx": 0, "income_type": IncomeType.rental, "income_amount": Decimal("18000"), "description": "Buy-to-let Property Rental"},
                 
                 # Ashani's incomes
-                {"customer_idx": 1, "income_type": IncomeType.employment, "income_amount": Decimal("45000"), "description": "Marketing Manager Salary"},
-                {"customer_idx": 1, "income_type": IncomeType.dividend, "income_amount": Decimal("8000"), "description": "Portalsys Ltd Dividends"},
+                {"individual_idx": 1, "income_type": IncomeType.employment, "income_amount": Decimal("45000"), "description": "Marketing Manager Salary"},
+                {"individual_idx": 1, "income_type": IncomeType.dividend, "income_amount": Decimal("8000"), "description": "Portalsys Ltd Dividends"},
                 
                 # Siyan's incomes (student/part-time)
-                {"customer_idx": 2, "income_type": IncomeType.employment, "income_amount": Decimal("6000"), "description": "Part-time Tech Support"},
+                {"individual_idx": 2, "income_type": IncomeType.employment, "income_amount": Decimal("6000"), "description": "Part-time Tech Support"},
                 
                 # Alice's incomes
-                {"customer_idx": 3, "income_type": IncomeType.self_employment, "income_amount": Decimal("65000"), "description": "Manufacturing Consultancy"},
-                {"customer_idx": 3, "income_type": IncomeType.dividend, "income_amount": Decimal("25000"), "description": "ABCD Ltd Dividends"},
+                {"individual_idx": 3, "income_type": IncomeType.self_employment, "income_amount": Decimal("65000"), "description": "Manufacturing Consultancy"},
+                {"individual_idx": 3, "income_type": IncomeType.dividend, "income_amount": Decimal("25000"), "description": "ABCD Ltd Dividends"},
                 
                 # Robert's incomes
-                {"customer_idx": 4, "income_type": IncomeType.employment, "income_amount": Decimal("55000"), "description": "Operations Manager"},
-                {"customer_idx": 4, "income_type": IncomeType.dividend, "income_amount": Decimal("12000"), "description": "ABCD Ltd Dividends"},
+                {"individual_idx": 4, "income_type": IncomeType.employment, "income_amount": Decimal("55000"), "description": "Operations Manager"},
+                {"individual_idx": 4, "income_type": IncomeType.dividend, "income_amount": Decimal("12000"), "description": "ABCD Ltd Dividends"},
                 
                 # Harrison's incomes
-                {"customer_idx": 5, "income_type": IncomeType.self_employment, "income_amount": Decimal("120000"), "description": "Legal Services Partnership"},
-                {"customer_idx": 5, "income_type": IncomeType.dividend, "income_amount": Decimal("35000"), "description": "Harrison Bernstein Ltd Dividends"},
-                {"customer_idx": 5, "income_type": IncomeType.interest, "income_amount": Decimal("8000"), "description": "Stock Market Investments"},
+                {"individual_idx": 5, "income_type": IncomeType.self_employment, "income_amount": Decimal("120000"), "description": "Legal Services Partnership"},
+                {"individual_idx": 5, "income_type": IncomeType.dividend, "income_amount": Decimal("35000"), "description": "Harrison Bernstein Ltd Dividends"},
+                {"individual_idx": 5, "income_type": IncomeType.interest, "income_amount": Decimal("8000"), "description": "Stock Market Investments"},
                 
                 # Sarah's incomes
-                {"customer_idx": 6, "income_type": IncomeType.employment, "income_amount": Decimal("40000"), "description": "Practice Administration"},
-                {"customer_idx": 6, "income_type": IncomeType.dividend, "income_amount": Decimal("15000"), "description": "Harrison Bernstein Ltd Dividends"},
+                {"individual_idx": 6, "income_type": IncomeType.employment, "income_amount": Decimal("40000"), "description": "Practice Administration"},
+                {"individual_idx": 6, "income_type": IncomeType.dividend, "income_amount": Decimal("15000"), "description": "Harrison Bernstein Ltd Dividends"},
                 
                 # David's incomes
-                {"customer_idx": 7, "income_type": IncomeType.self_employment, "income_amount": Decimal("75000"), "description": "Retail Business Operations"},
-                {"customer_idx": 7, "income_type": IncomeType.dividend, "income_amount": Decimal("20000"), "description": "Beckfields Store Ltd Dividends"},
+                {"individual_idx": 7, "income_type": IncomeType.self_employment, "income_amount": Decimal("75000"), "description": "Retail Business Operations"},
+                {"individual_idx": 7, "income_type": IncomeType.dividend, "income_amount": Decimal("20000"), "description": "Beckfields Store Ltd Dividends"},
                 
                 # Emma's incomes
-                {"customer_idx": 8, "income_type": IncomeType.employment, "income_amount": Decimal("38000"), "description": "Store Manager Salary"},
-                {"customer_idx": 8, "income_type": IncomeType.dividend, "income_amount": Decimal("18000"), "description": "Beckfields Store Ltd Dividends"}
+                {"individual_idx": 8, "income_type": IncomeType.employment, "income_amount": Decimal("38000"), "description": "Store Manager Salary"},
+                {"individual_idx": 8, "income_type": IncomeType.dividend, "income_amount": Decimal("18000"), "description": "Beckfields Store Ltd Dividends"}
             ]
             
             incomes = []
             for income_data in incomes_data:
-                customer_idx = income_data.pop("customer_idx")
+                individual_idx = income_data.pop("individual_idx")
                 income = Income(
-                    customer_id=customers[customer_idx].id,
+                    individual_id=individuals[individual_idx].id,
                     **income_data
                 )
                 db.add(income)
@@ -367,11 +367,11 @@ async def create_sample_data():
             await db.flush()
             print(f"✅ Created {len(incomes)} income records")
             
-            # Create Properties for customers
+            # Create Properties for individuals (not customers)
             properties_data = [
                 # Nyal's properties
                 {
-                    "customer_idx": 0,
+                    "individual_idx": 0,
                     "property_name": "Main Residence",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -386,7 +386,7 @@ async def create_sample_data():
                     "is_rental_property": False
                 },
                 {
-                    "customer_idx": 0,
+                    "individual_idx": 0,
                     "property_name": "Buy-to-Let Property",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -408,7 +408,7 @@ async def create_sample_data():
                 
                 # Alice's properties
                 {
-                    "customer_idx": 3,
+                    "individual_idx": 3,
                     "property_name": "Family Home",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -425,7 +425,7 @@ async def create_sample_data():
                 
                 # Harrison's properties
                 {
-                    "customer_idx": 5,
+                    "individual_idx": 5,
                     "property_name": "Law Practice Offices",
                     "property_type": PropertyType.commercial,
                     "property_status": PropertyStatus.owned,
@@ -440,7 +440,7 @@ async def create_sample_data():
                     "description": "Ground floor offices with meeting rooms"
                 },
                 {
-                    "customer_idx": 5,
+                    "individual_idx": 5,
                     "property_name": "Holiday Home",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -458,7 +458,7 @@ async def create_sample_data():
                 
                 # David's properties
                 {
-                    "customer_idx": 7,
+                    "individual_idx": 7,
                     "property_name": "Beckfields Store",
                     "property_type": PropertyType.commercial,
                     "property_status": PropertyStatus.leased,
@@ -471,7 +471,7 @@ async def create_sample_data():
                     "description": "Ground floor retail unit with storage"
                 },
                 {
-                    "customer_idx": 7,
+                    "individual_idx": 7,
                     "property_name": "Shared Residence",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -489,9 +489,9 @@ async def create_sample_data():
             
             properties = []
             for property_data in properties_data:
-                customer_idx = property_data.pop("customer_idx")
+                individual_idx = property_data.pop("individual_idx")
                 property_obj = Property(
-                    customer_id=customers[customer_idx].id,
+                    individual_id=individuals[individual_idx].id,
                     **property_data
                 )
                 db.add(property_obj)
@@ -727,29 +727,27 @@ async def create_sample_data():
             for i, individual in enumerate(individuals):
                 customer = customers[i] if i < len(customers) else None
                 if customer:
-                    customer_incomes = [inc for inc in incomes if inc.customer_id == customer.id]
-                    customer_properties = [prop for prop in properties if prop.customer_id == customer.id]
+                    individual_incomes = [inc for inc in incomes if inc.individual_id == individual.id]
+                    individual_properties = [prop for prop in properties if prop.individual_id == individual.id]
                     print(f"  {individual.full_name} ({individual.primary_mobile})")
                     print(f"    └─ Customer: NI {customer.ni_number}, MLR: {customer.mlr_status.value}")
-                    print(f"    └─ Incomes: {len(customer_incomes)} records")
-                    print(f"    └─ Properties: {len(customer_properties)} records")
+                    print(f"    └─ Incomes: {len(individual_incomes)} records")
+                    print(f"    └─ Properties: {len(individual_properties)} records")
             
             print("\n💰 Income Summary:")
-            for i, customer in enumerate(customers):
-                individual = individuals[i]
-                customer_incomes = [inc for inc in incomes if inc.customer_id == customer.id]
-                total_income = sum(inc.income_amount for inc in customer_incomes)
+            for i, individual in enumerate(individuals):
+                individual_incomes = [inc for inc in incomes if inc.individual_id == individual.id]
+                total_income = sum(inc.income_amount for inc in individual_incomes)
                 print(f"  {individual.full_name}: £{total_income:,} total")
-                for inc in customer_incomes:
+                for inc in individual_incomes:
                     print(f"    └─ {inc.income_type.value}: £{inc.income_amount:,} ({inc.description})")
             
             print("\n🏠 Property Summary:")
-            for i, customer in enumerate(customers):
-                individual = individuals[i]
-                customer_properties = [prop for prop in properties if prop.customer_id == customer.id]
-                if customer_properties:
+            for i, individual in enumerate(individuals):
+                individual_properties = [prop for prop in properties if prop.individual_id == individual.id]
+                if individual_properties:
                     print(f"  {individual.full_name}:")
-                    for prop in customer_properties:
+                    for prop in individual_properties:
                         rental_info = f" (Rental: £{prop.monthly_rental_income}/month)" if prop.is_rental_property else ""
                         value_info = f"£{prop.current_value:,}" if prop.current_value else "No value recorded"
                         print(f"    └─ {prop.property_name}: {prop.property_type.value} - {value_info}{rental_info}")

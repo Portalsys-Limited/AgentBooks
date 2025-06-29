@@ -25,8 +25,8 @@ class Income(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     
-    # Foreign key to customer
-    customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False, index=True)
+    # Foreign key to individual
+    individual_id = Column(UUID(as_uuid=True), ForeignKey("individuals.id"), nullable=False, index=True)
     
     # Income details
     income_type = Column(SQLEnum(IncomeType), nullable=False, index=True)
@@ -38,7 +38,7 @@ class Income(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    customer = relationship("Customer", back_populates="incomes")
+    individual = relationship("Individual", back_populates="incomes")
     
     def __repr__(self):
-        return f"<Income(id={self.id}, customer_id={self.customer_id}, type='{self.income_type}', amount={self.income_amount})>" 
+        return f"<Income(id={self.id}, individual_id={self.individual_id}, type='{self.income_type}', amount={self.income_amount})>" 
