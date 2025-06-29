@@ -17,8 +17,8 @@ from config.settings import settings
 from db.models.base import Base  # Import Base to access metadata
 from db.models import (
     Practice, User, Individual, Customer, Client, CustomerClientAssociation, 
-    Service, ClientService, Income, Property, UserRole, BusinessType,
-    IndividualRelationship
+    Service, ClientService, Income, Property, PropertyIndividualRelationship,
+    UserRole, BusinessType, IndividualRelationship
 )
 from db.models.individuals import Gender, MaritalStatus
 from db.models.customer import MLRStatus, CustomerStatus
@@ -26,6 +26,7 @@ from db.models.income import IncomeType
 from db.models.property import PropertyType, PropertyStatus
 from db.models.customer_client_association import RelationshipType
 from db.models.individual_relationship import IndividualRelationType
+from db.models.property_individual_relationship import OwnershipType
 from services.auth_service import get_password_hash
 
 async def create_sample_data():
@@ -439,11 +440,10 @@ async def create_sample_data():
             await db.flush()
             print(f"✅ Created {len(incomes)} income records")
             
-            # Create Properties for individuals (not customers)
+            # Create Properties (without individual_id)
             properties_data = [
-                # Nyal's properties
+                # Main Residence
                 {
-                    "individual_idx": 0,
                     "property_name": "Main Residence",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -457,8 +457,8 @@ async def create_sample_data():
                     "bathrooms": "2",
                     "is_rental_property": False
                 },
+                # Buy-to-Let Property
                 {
-                    "individual_idx": 0,
                     "property_name": "Buy-to-Let Property",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -477,10 +477,8 @@ async def create_sample_data():
                     "lease_start_date": datetime(2023, 1, 1),
                     "lease_end_date": datetime(2024, 12, 31)
                 },
-                
-                # Alice's properties
+                # Family Home
                 {
-                    "individual_idx": 3,
                     "property_name": "Family Home",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -494,10 +492,8 @@ async def create_sample_data():
                     "bathrooms": "2",
                     "is_rental_property": False
                 },
-                
-                # Harrison's properties
+                # Law Practice Offices
                 {
-                    "individual_idx": 5,
                     "property_name": "Law Practice Offices",
                     "property_type": PropertyType.commercial,
                     "property_status": PropertyStatus.owned,
@@ -511,8 +507,8 @@ async def create_sample_data():
                     "is_rental_property": False,
                     "description": "Ground floor offices with meeting rooms"
                 },
+                # Holiday Home
                 {
-                    "individual_idx": 5,
                     "property_name": "Holiday Home",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -527,10 +523,8 @@ async def create_sample_data():
                     "is_rental_property": False,
                     "description": "Seaside holiday home"
                 },
-                
-                # David's properties
+                # Beckfields Store
                 {
-                    "individual_idx": 7,
                     "property_name": "Beckfields Store",
                     "property_type": PropertyType.commercial,
                     "property_status": PropertyStatus.leased,
@@ -542,8 +536,8 @@ async def create_sample_data():
                     "is_rental_property": False,
                     "description": "Ground floor retail unit with storage"
                 },
+                # Shared Residence
                 {
-                    "individual_idx": 7,
                     "property_name": "Shared Residence",
                     "property_type": PropertyType.residential,
                     "property_status": PropertyStatus.owned,
@@ -561,16 +555,141 @@ async def create_sample_data():
             
             properties = []
             for property_data in properties_data:
-                individual_idx = property_data.pop("individual_idx")
-                property_obj = Property(
-                    individual_id=individuals[individual_idx].id,
-                    **property_data
-                )
+                property_obj = Property(**property_data)
                 db.add(property_obj)
                 properties.append(property_obj)
             
             await db.flush()
             print(f"✅ Created {len(properties)} property records")
+
+            # Create Property-Individual Relationships
+            property_relationships_data = [
+                # Main Residence - Nyal & Ashani joint owners
+                {
+                    "property_idx": 0,
+                    "individual_idx": 0,  # Nyal
+                    "ownership_type": OwnershipType.joint_owner,
+                    "ownership_percentage": Decimal("50.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2015, 6, 1),
+                    "description": "Joint owner with spouse"
+                },
+                {
+                    "property_idx": 0,
+                    "individual_idx": 1,  # Ashani
+                    "ownership_type": OwnershipType.joint_owner,
+                    "ownership_percentage": Decimal("50.00"),
+                    "start_date": datetime(2015, 6, 1),
+                    "description": "Joint owner with spouse"
+                },
+                
+                # Buy-to-Let Property - Nyal sole owner
+                {
+                    "property_idx": 1,
+                    "individual_idx": 0,  # Nyal
+                    "ownership_type": OwnershipType.sole_owner,
+                    "ownership_percentage": Decimal("100.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2018, 3, 15),
+                    "description": "Investment property"
+                },
+                
+                # Family Home - Alice sole owner
+                {
+                    "property_idx": 2,
+                    "individual_idx": 3,  # Alice
+                    "ownership_type": OwnershipType.sole_owner,
+                    "ownership_percentage": Decimal("100.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2016, 8, 1),
+                    "description": "Primary residence"
+                },
+                
+                # Law Practice Offices - Harrison & Sarah joint owners
+                {
+                    "property_idx": 3,
+                    "individual_idx": 5,  # Harrison
+                    "ownership_type": OwnershipType.joint_owner,
+                    "ownership_percentage": Decimal("70.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2012, 4, 1),
+                    "description": "Business premises - majority owner"
+                },
+                {
+                    "property_idx": 3,
+                    "individual_idx": 6,  # Sarah
+                    "ownership_type": OwnershipType.joint_owner,
+                    "ownership_percentage": Decimal("30.00"),
+                    "start_date": datetime(2012, 4, 1),
+                    "description": "Business premises - minority owner"
+                },
+                
+                # Holiday Home - Harrison sole owner
+                {
+                    "property_idx": 4,
+                    "individual_idx": 5,  # Harrison
+                    "ownership_type": OwnershipType.sole_owner,
+                    "ownership_percentage": Decimal("100.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2019, 7, 1),
+                    "description": "Holiday property"
+                },
+                
+                # Beckfields Store - David & Emma joint tenants
+                {
+                    "property_idx": 5,
+                    "individual_idx": 7,  # David
+                    "ownership_type": OwnershipType.tenant,
+                    "ownership_percentage": Decimal("50.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2020, 1, 1),
+                    "end_date": datetime(2025, 12, 31),
+                    "description": "Commercial lease - primary tenant"
+                },
+                {
+                    "property_idx": 5,
+                    "individual_idx": 8,  # Emma
+                    "ownership_type": OwnershipType.tenant,
+                    "ownership_percentage": Decimal("50.00"),
+                    "start_date": datetime(2020, 1, 1),
+                    "end_date": datetime(2025, 12, 31),
+                    "description": "Commercial lease - joint tenant"
+                },
+                
+                # Shared Residence - David & Emma beneficial owners
+                {
+                    "property_idx": 6,
+                    "individual_idx": 7,  # David
+                    "ownership_type": OwnershipType.beneficial_owner,
+                    "ownership_percentage": Decimal("50.00"),
+                    "is_primary_owner": True,
+                    "start_date": datetime(2020, 6, 1),
+                    "description": "Shared ownership property"
+                },
+                {
+                    "property_idx": 6,
+                    "individual_idx": 8,  # Emma
+                    "ownership_type": OwnershipType.beneficial_owner,
+                    "ownership_percentage": Decimal("50.00"),
+                    "start_date": datetime(2020, 6, 1),
+                    "description": "Shared ownership property"
+                }
+            ]
+            
+            property_relationships = []
+            for rel_data in property_relationships_data:
+                property_idx = rel_data.pop("property_idx")
+                individual_idx = rel_data.pop("individual_idx")
+                relationship = PropertyIndividualRelationship(
+                    property_id=properties[property_idx].id,
+                    individual_id=individuals[individual_idx].id,
+                    **rel_data
+                )
+                db.add(relationship)
+                property_relationships.append(relationship)
+            
+            await db.flush()
+            print(f"✅ Created {len(property_relationships)} property-individual relationships")
             
             # Create Multiple Clients
             clients_data = [
@@ -837,7 +956,10 @@ async def create_sample_data():
                 customer = customers[i] if i < len(customers) else None
                 if customer:
                     individual_incomes = [inc for inc in incomes if inc.individual_id == individual.id]
-                    individual_properties = [prop for prop in properties if prop.individual_id == individual.id]
+                    individual_properties = [
+                        rel.property for rel in property_relationships 
+                        if rel.individual_id == individual.id
+                    ]
                     print(f"  {individual.full_name} ({individual.primary_mobile})")
                     print(f"    └─ Customer: NI {customer.ni_number}, MLR: {customer.mlr_status.value}")
                     print(f"    └─ Incomes: {len(individual_incomes)} records")
@@ -853,13 +975,19 @@ async def create_sample_data():
             
             print("\n🏠 Property Summary:")
             for i, individual in enumerate(individuals):
-                individual_properties = [prop for prop in properties if prop.individual_id == individual.id]
+                individual_properties = [
+                    rel.property for rel in property_relationships 
+                    if rel.individual_id == individual.id
+                ]
                 if individual_properties:
                     print(f"  {individual.full_name}:")
                     for prop in individual_properties:
+                        rel = next(r for r in property_relationships 
+                                 if r.individual_id == individual.id and r.property_id == prop.id)
+                        ownership_info = f"{rel.ownership_type.value} ({rel.ownership_percentage}%)"
                         rental_info = f" (Rental: £{prop.monthly_rental_income}/month)" if prop.is_rental_property else ""
                         value_info = f"£{prop.current_value:,}" if prop.current_value else "No value recorded"
-                        print(f"    └─ {prop.property_name}: {prop.property_type.value} - {value_info}{rental_info}")
+                        print(f"    └─ {prop.property_name}: {prop.property_type.value} - {ownership_info} - {value_info}{rental_info}")
             
             print("\n🔑 Login Credentials (all users have password 'admin'):")
             for user in created_users:

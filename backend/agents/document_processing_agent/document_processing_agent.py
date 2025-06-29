@@ -1,9 +1,7 @@
 """Document processing agent for handling multi-step document analysis workflow using LangGraph."""
 
-from typing import Dict, Any, Annotated, Optional, Callable
-from langgraph.graph import StateGraph
+from typing import Dict, Any, Optional
 from langchain.tools import BaseTool
-from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -13,20 +11,14 @@ from datetime import datetime
 from db.models import Document, Practice
 from db.models.documents import DocumentAgentState
 
-from .states import AgentState, DOCUMENT_CATEGORIES, CLIENT_REQUIRED_CATEGORIES
-from .nodes import classify_document_node
-from .client_nodes import (
-    check_client_assignment_node,
-    send_rejection_message_node,
-    send_selection_poll_node,
-    assign_single_client_node
-)
+from .states import AgentState, DOCUMENT_CATEGORIES
+from .workflow import create_document_processing_workflow
 
 class DocumentClassificationTool(BaseTool):
     """Tool for classifying documents."""
     name: str = "classify_document"
     description: str = "Classify a document based on its content and metadata"
-    args_schema: Optional[type] = None  # Type annotation for args_schema
+    args_schema: Optional[type] = None
     
     def _run(self, document_category: str, confidence: float, explanation: str) -> Dict[str, Any]:
         """Run the tool."""
@@ -67,11 +59,6 @@ class DocumentClassificationTool(BaseTool):
         """Run the tool asynchronously."""
         return self._run(document_category, confidence, explanation)
 
-def end_workflow(state: AgentState) -> None:
-    """End node for the workflow."""
-    state["current_node"] = "end"
-    return None
-
 class DocumentProcessingAgent:
     def __init__(self, db_session: Session, document_id: uuid.UUID):
         """Initialize the document processing agent."""
@@ -87,7 +74,7 @@ class DocumentProcessingAgent:
         # Initialize LangGraph components
         self.llm = ChatOpenAI(model="gpt-4o-mini")
         self.tools = [DocumentClassificationTool()]
-        self.workflow = self._create_workflow()
+        self.workflow = create_document_processing_workflow(self.db_session, self.llm, self.tools)
         
     def _load_document(self) -> Document:
         """Load document from database."""
@@ -100,66 +87,6 @@ class DocumentProcessingAgent:
         return self.db_session.execute(
             select(Practice).where(Practice.id == self.document.practice_id)
         ).scalar_one_or_none()
-    
-    def _create_workflow(self) -> StateGraph:
-        """Create the document processing workflow graph."""
-        # Create workflow graph
-        workflow = StateGraph(AgentState)
-        
-        # Add nodes
-        workflow.add_node(
-            "classify_document", 
-            lambda state: classify_document_node(state, self.llm, self.tools)
-        )
-        
-        workflow.add_node(
-            "check_client_assignment",
-            lambda state: check_client_assignment_node(state, self.db_session)
-        )
-        
-        workflow.add_node(
-            "send_rejection_message",
-            lambda state: send_rejection_message_node(state, self.db_session)
-        )
-        
-        workflow.add_node(
-            "send_selection_poll",
-            lambda state: send_selection_poll_node(state, self.db_session)
-        )
-        
-        workflow.add_node(
-            "assign_single_client",
-            lambda state: assign_single_client_node(state, self.db_session)
-        )
-        
-        workflow.add_node("end", end_workflow)
-        
-        # Set conditional edges
-        workflow.add_edge("classify_document", "check_client_assignment")
-        
-        def route_after_check_client_assignment(state: AgentState) -> str:
-            """Determine next step after checking client assignment."""
-            return state["current_node"]
-        
-        workflow.add_conditional_edges(
-            "check_client_assignment",
-            route_after_check_client_assignment,
-            {
-                "send_rejection_message": "send_rejection_message",
-                "send_selection_poll": "send_selection_poll",
-                "assign_single_client": "assign_single_client",
-                "end": "end",
-            },
-        )
-        
-        workflow.add_edge("send_rejection_message", "end")
-        workflow.add_edge("send_selection_poll", "end")
-        workflow.add_edge("assign_single_client", "end")
-        
-        # Set entry point
-        workflow.set_entry_point("classify_document")
-        
-        return workflow.compile()
     
     def process_document(self) -> Dict[str, Any]:
         """Process document through the workflow."""
@@ -207,7 +134,8 @@ class DocumentProcessingAgent:
                 individual_id=None,
                 available_clients=[],
                 requires_client_selection=False,
-                whatsapp_message_sent=False
+                whatsapp_message_sent=False,
+                invoice_id=None
             )
             
             print("Running workflow...")
@@ -273,7 +201,8 @@ class DocumentProcessingAgent:
                     "document_category": self.document.document_category,
                     "agent_metadata": self.document.agent_metadata,
                     "requires_client_selection": final_state.get("requires_client_selection", False),
-                    "whatsapp_message_sent": final_state.get("whatsapp_message_sent", False)
+                    "whatsapp_message_sent": final_state.get("whatsapp_message_sent", False),
+                    "invoice_id": final_state.get("invoice_id")
                 }
                 
             except Exception as e:

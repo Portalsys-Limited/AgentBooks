@@ -88,6 +88,7 @@ class Document(Base):
     uploaded_by = relationship("User", foreign_keys=[uploaded_by_user_id], back_populates="uploaded_documents")
     validated_by = relationship("User", foreign_keys=[validated_by_user_id], back_populates="validated_documents")
     archived_by = relationship("User", foreign_keys=[archived_by_user_id], back_populates="archived_documents")
+    invoice = relationship("Invoice", back_populates="document", uselist=False)
     
     def __repr__(self):
         return f"<Document(id={self.id}, filename='{self.filename}', type={self.document_type})>" 

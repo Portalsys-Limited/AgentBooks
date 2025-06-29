@@ -81,6 +81,15 @@ class PayrollType(str, enum.Enum):
     admin_only = "admin_only"
     custom = "custom"
 
+class ClientType(str, enum.Enum):
+    """Type of client."""
+    limited_company = "limited_company"
+    sole_trader = "sole_trader"
+    partnership = "partnership"
+    llp = "llp"
+    charity = "charity"
+    other = "other"
+
 class Client(Base):
     __tablename__ = "clients"
     
@@ -257,6 +266,8 @@ class Client(Base):
     companies_house_profile = relationship("CompaniesHouseProfile", back_populates="client", uselist=False)
     client_services = relationship("ClientService", back_populates="client", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="client")
+    services = relationship("ClientService", back_populates="client")
+    invoices = relationship("Invoice", back_populates="client")
     
     def __repr__(self):
         return f"<Client(id={self.id}, business_name='{self.business_name}', client_code='{self.client_code}')>"

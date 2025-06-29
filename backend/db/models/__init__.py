@@ -14,6 +14,8 @@ from .individuals import Individual, Gender, MaritalStatus
 from .income import Income, IncomeType
 from .property import Property, PropertyType, PropertyStatus
 from .individual_relationship import IndividualRelationship, IndividualRelationType
+from .property_individual_relationship import PropertyIndividualRelationship, OwnershipType
+from .invoice import Invoice, InvoiceLineItem, InvoiceStatus
 
 # Re-export everything for backward compatibility
 __all__ = [
@@ -57,5 +59,10 @@ __all__ = [
     'PropertyType',
     'PropertyStatus',
     'IndividualRelationship',
-    'IndividualRelationType'
+    'IndividualRelationType',
+    'PropertyIndividualRelationship',
+    'OwnershipType',
+    'Invoice',
+    'InvoiceLineItem',
+    'InvoiceStatus'
 ] 

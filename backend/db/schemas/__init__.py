@@ -25,8 +25,13 @@ from .income import (
     IncomeCreateRequest, IncomeUpdateRequest
 )
 from .property import (
-    Property, PropertyCreate, PropertyUpdate, PropertyBase, PropertyListItem, PropertyResponse,
-    PropertyCreateRequest, PropertyUpdateRequest
+    PropertyBase, PropertyCreateRequest, PropertyUpdateRequest,
+    PropertyListItem, PropertyResponse
+)
+from .property_individual_relationship import (
+    PropertyIndividualRelationshipBase, PropertyIndividualRelationshipCreate,
+    PropertyIndividualRelationshipUpdate, PropertyIndividualRelationshipResponse,
+    PropertyIndividualRelationshipWithProperty, PropertyIndividualRelationshipWithIndividual
 )
 
 __all__ = [
@@ -61,6 +66,11 @@ __all__ = [
     "IncomeCreateRequest", "IncomeUpdateRequest",
     
     # Property schemas
-    "Property", "PropertyCreate", "PropertyUpdate", "PropertyBase", "PropertyListItem", "PropertyResponse",
-    "PropertyCreateRequest", "PropertyUpdateRequest",
+    "PropertyBase", "PropertyCreateRequest", "PropertyUpdateRequest",
+    "PropertyListItem", "PropertyResponse",
+    
+    # Property Individual Relationship schemas
+    "PropertyIndividualRelationshipBase", "PropertyIndividualRelationshipCreate",
+    "PropertyIndividualRelationshipUpdate", "PropertyIndividualRelationshipResponse",
+    "PropertyIndividualRelationshipWithProperty", "PropertyIndividualRelationshipWithIndividual"
 ] 
