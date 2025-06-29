@@ -65,7 +65,13 @@ export interface Customer extends BaseEntity {
   
   // Practice info
   primary_accounting_contact_id?: string
-  primary_accounting_contact?: UserSummary
+  primary_accounting_contact?: {
+    id: string
+    email: string
+    first_name?: string
+    last_name?: string
+    full_name: string
+  }
   acting_from?: string
   
   // MLR info
@@ -81,7 +87,13 @@ export interface Customer extends BaseEntity {
   setup_date?: string
   last_edited?: string
   last_edited_by_id?: string
-  last_edited_by?: UserSummary
+  last_edited_by?: {
+    id: string
+    email: string
+    first_name?: string
+    last_name?: string
+    full_name: string
+  }
   
   // Related data
   client_associations: Array<{

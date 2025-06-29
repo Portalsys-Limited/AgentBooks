@@ -16,6 +16,9 @@ from db.schemas.customer_client_association import CustomerClientAssociationWith
 class UserSummary(BaseModel):
     id: UUID
     email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: str
     
     class Config:
         from_attributes = True

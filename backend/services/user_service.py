@@ -35,7 +35,9 @@ async def create_user(db: AsyncSession, user_data: UserCreate):
         email=user_data.email,
         password_hash=hashed_password,
         role=user_data.role,
-        practice_id=user_data.practice_id
+        practice_id=user_data.practice_id,
+        first_name=user_data.first_name,
+        last_name=user_data.last_name
     )
     
     db.add(db_user)
