@@ -25,12 +25,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar user={user} onLogout={logout} />
+    <div className="flex h-screen bg-gray-50 relative">
+      {/* Top Navigation Bar - Full Width Overlay */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <TopNavBar user={user} onLogout={logout} />
+      </div>
+      
+      {/* Sidebar */}
+      <div className="flex-none">
+        <Sidebar user={user} />
+      </div>
+      
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-none">
-          <TopNavBar user={user} onLogout={logout} />
-        </div>
+        {/* Add top padding to account for fixed nav bar */}
+        <div className="h-16"></div>
         <div className="flex-1 flex flex-col overflow-hidden">
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
             {children}
