@@ -50,7 +50,21 @@ export default function CustomerDetailPage() {
 
   useEffect(() => {
     if (customer) {
-      setEditedCustomer(JSON.parse(JSON.stringify(customer))) // Deep copy
+      try {
+        // Create a safe deep copy with fallback values for missing nested properties
+        const safeCopy = {
+          ...customer,
+          individual: {
+            ...customer.individual,
+            incomes: Array.isArray(customer.individual?.incomes) ? customer.individual.incomes : [],
+            property_relationships: Array.isArray(customer.individual?.property_relationships) ? customer.individual.property_relationships : []
+          }
+        }
+        setEditedCustomer(safeCopy)
+      } catch (error) {
+        console.error('Error creating customer copy:', error)
+        setEditedCustomer(customer)
+      }
     }
   }, [customer])
 
@@ -93,17 +107,25 @@ export default function CustomerDetailPage() {
   const handleFieldChange = (path: string, value: any) => {
     if (!editedCustomer) return
 
-    const pathArray = path.split('.')
-    let current: any = { ...editedCustomer }
-    
-    // Navigate to the nested property
-    for (let i = 0; i < pathArray.length - 1; i++) {
-      current = current[pathArray[i]]
+    try {
+      const pathArray = path.split('.')
+      const newCustomer = { ...editedCustomer }
+      let current: any = newCustomer
+      
+      // Navigate to the nested property, creating objects if they don't exist
+      for (let i = 0; i < pathArray.length - 1; i++) {
+        if (!current[pathArray[i]]) {
+          current[pathArray[i]] = {}
+        }
+        current = current[pathArray[i]]
+      }
+      
+      // Update the value
+      current[pathArray[pathArray.length - 1]] = value
+      setEditedCustomer(newCustomer)
+    } catch (error) {
+      console.error('Error updating field:', path, value, error)
     }
-    
-    // Update the value
-    current[pathArray[pathArray.length - 1]] = value
-    setEditedCustomer({ ...editedCustomer })
   }
 
   const handleTabChange = (tabId: string) => {

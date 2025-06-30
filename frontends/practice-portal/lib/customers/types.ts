@@ -57,7 +57,7 @@ export interface PropertyIndividualRelationship {
   notes?: string
   property_id: string
   individual_id: string
-  property: Property
+  property?: Property  // Made optional to handle backend loading issues
   created_at: string
   updated_at?: string
 }
@@ -100,8 +100,8 @@ export interface Individual {
   last_edited_by?: UserSummary
   
   // Related data
-  incomes: Income[]
-  property_relationships: PropertyIndividualRelationship[]
+  incomes?: Income[]
+  property_relationships?: PropertyIndividualRelationship[]
 }
 
 // Client type
@@ -308,8 +308,8 @@ export interface IndividualSummary {
   last_edited_by?: UserSummary
   
   // Related data
-  incomes: Income[]
-  property_relationships: PropertyIndividualRelationship[]
+  incomes?: Income[]
+  property_relationships?: PropertyIndividualRelationship[]
 }
 
 // Customer Info Tab Response
