@@ -22,7 +22,8 @@ interface TopNavBarProps {
   onLogout: () => void
 }
 
-export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
+// Memoize the entire component to prevent unnecessary re-renders
+const TopNavBar = React.memo(({ user, onLogout }: TopNavBarProps) => {
   const router = useRouter()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -30,15 +31,63 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
   const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  
+  // Cache user display name
+  const userDisplayName = user.email.split('@')[0]
+  
+  // Format role once since it won't change during component lifecycle
+  const formattedRole = user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
 
-  const getUserDisplayName = () => {
-    // Use email username as display name since User type doesn't have first_name/last_name
-    return user.email.split('@')[0]
-  }
+  // Typing animation logic
+  const [displayedPlaceholder, setDisplayedPlaceholder] = useState('')
+  const [placeholderIndex, setPlaceholderIndex] = useState(0)
+  const [isTyping, setIsTyping] = useState(true)
+  const placeholders = [
+    "Search for 'John Smith'...",
+    "Try 'ABC Corp'...",
+    "Search 'Tax Services'...",
+    "Find 'Recent Invoices'...",
+    "Ask 'Show overdue payments'..."
+  ]
 
-  const formatRole = (role: string) => {
-    return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
-  }
+  useEffect(() => {
+    let currentText = placeholders[placeholderIndex]
+    let currentIndex = 0
+    let typingTimer: NodeJS.Timeout
+    let deletingTimer: NodeJS.Timeout
+
+    const typeText = () => {
+      if (currentIndex < currentText.length) {
+        setDisplayedPlaceholder(prev => currentText.slice(0, currentIndex + 1))
+        currentIndex++
+        typingTimer = setTimeout(typeText, 50) // Typing speed
+      } else {
+        setTimeout(() => setIsTyping(false), 2000) // Pause at the end
+      }
+    }
+
+    const deleteText = () => {
+      if (currentIndex > 0) {
+        setDisplayedPlaceholder(prev => currentText.slice(0, currentIndex - 1))
+        currentIndex--
+        deletingTimer = setTimeout(deleteText, 30) // Deleting speed
+      } else {
+        setPlaceholderIndex((prev) => (prev + 1) % placeholders.length)
+        setIsTyping(true)
+      }
+    }
+
+    if (isTyping) {
+      typeText()
+    } else {
+      deleteText()
+    }
+
+    return () => {
+      clearTimeout(typingTimer)
+      clearTimeout(deletingTimer)
+    }
+  }, [placeholderIndex, isTyping])
 
   // Handle search
   useEffect(() => {
@@ -85,44 +134,39 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
   }
 
   return (
-    <nav className="bg-[#0077b6] shadow-sm border-b border-blue-700 px-2 sm:px-4 lg:px-6">
-      <div className="flex justify-between h-16">
-        {/* Left side - Logo, Brand, and Back button */}
-        <div className="flex items-center space-x-4">
+    <nav className="bg-gradient-to-r from-blue-700/95 via-blue-600/80 to-blue-700/95 shadow-sm border-b border-blue-600/40 px-2 sm:px-4 lg:px-6">
+            <div className="grid grid-cols-3 h-16 relative">
+          {/* Left side - Logo, Brand, and Back button */}
+          <div className="flex items-center space-x-4 justify-start">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-              <img
-                src="/LogoOnly.png"
-                alt="AgentBooks Logo"
-                className="w-10 h-10 object-contain filter brightness-0 invert"
-              />
+            <div className="flex items-center justify-center flex-shrink-0 relative group">
+              <span className="text-4xl font-extrabold text-white/90 tracking-wide transition-all duration-300 group-hover:scale-110 group-hover:text-opacity-80 filter drop-shadow-[0_0_6px_rgba(255,255,255,0.3)]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                A
+              </span>
             </div>
           </div>
-          
-          {/* Divider */}
-          <div className="h-8 w-px bg-blue-400"></div>
-          
+        
           {/* Back button */}
           <button
             onClick={() => router.back()}
-            className="p-2 text-blue-100 hover:text-white hover:bg-[#06b3e8] rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
+            className="p-2 text-blue-100 hover:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-white/25 transition-all duration-300 hover:bg-white/10 hover:backdrop-blur-sm relative before:absolute before:inset-0 before:rounded-full before:bg-white/5 before:opacity-0 hover:before:opacity-100 before:transition-opacity"
           >
             <ArrowLeftIcon className="h-6 w-6" />
           </button>
         </div>
 
         {/* Center - Search Bar */}
-        <div className="flex-1 flex items-center justify-center max-w-2xl" ref={searchRef}>
-          <div className="w-full max-w-lg relative">
+        <div className="flex items-center justify-center col-span-1" ref={searchRef}>
+          <div className="w-[33.333vw] relative">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-6 w-6 text-white z-20 drop-shadow-lg shadow-white animate-pulse" />
               <input
                 type="text"
-                placeholder="Search clients & customers..."
+                placeholder={displayedPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white shadow-sm"
+                className="w-full pl-12 pr-4 py-1.5 text-sm border border-white/20 rounded-full focus:ring-2 focus:ring-white/50 focus:border-white/50 bg-white/10 shadow-lg backdrop-blur-sm hover:bg-white/20 hover:border-white/30 transition-all duration-300 text-white placeholder-white/60 after:content-['|'] after:animate-blink"
               />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -215,15 +259,14 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
         </div>
 
         {/* Right side - User menu and notifications */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 justify-end">
           {/* Notifications */}
           <button
             type="button"
-            className="relative p-2 text-blue-100 hover:text-white hover:bg-[#06b3e8] rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
+            className="relative p-2 text-blue-100 hover:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-white/25 transition-all duration-300 hover:bg-white/10 hover:backdrop-blur-sm relative before:absolute before:inset-0 before:rounded-full before:bg-white/5 before:opacity-0 hover:before:opacity-100 before:transition-opacity"
           >
             <span className="sr-only">View notifications</span>
             <BellIcon className="h-6 w-6" />
-            {/* Notification badge */}
             <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-blue-600"></span>
           </button>
 
@@ -231,7 +274,7 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
           <button
             type="button"
             onClick={() => router.push('/settings')}
-            className="p-2 text-blue-100 hover:text-white hover:bg-[#06b3e8] rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
+            className="p-2 text-blue-100 hover:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-white/25 transition-all duration-300 hover:bg-white/10 hover:backdrop-blur-sm relative before:absolute before:inset-0 before:rounded-full before:bg-white/5 before:opacity-0 hover:before:opacity-100 before:transition-opacity"
           >
             <span className="sr-only">Settings</span>
             <Cog6ToothIcon className="h-6 w-6" />
@@ -242,7 +285,7 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
             <button
               type="button"
               onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-              className="flex items-center space-x-3 p-2 text-sm rounded-lg hover:bg-[#06b3e8] focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
+              className="flex items-center space-x-3 p-2 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-white/25 transition-all duration-300 hover:bg-white/10 hover:backdrop-blur-sm relative before:absolute before:inset-0 before:rounded-lg before:bg-white/5 before:opacity-0 hover:before:opacity-100 before:transition-opacity"
             >
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -250,10 +293,10 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                 </div>
                 <div className="hidden md:block text-left">
                   <div className="text-sm font-medium text-white">
-                    {getUserDisplayName()}
+                    {userDisplayName}
                   </div>
                   <div className="text-xs text-blue-100">
-                    {formatRole(user.role)}
+                    {formattedRole}
                   </div>
                 </div>
                 <ChevronDownIcon className="h-4 w-4 text-blue-100" />
@@ -267,13 +310,13 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                   {/* User info */}
                   <div className="px-4 py-3 border-b border-gray-100">
                     <div className="text-sm font-medium text-gray-900">
-                      {getUserDisplayName()}
+                      {userDisplayName}
                     </div>
                     <div className="text-sm text-gray-600">
                       {user.email}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {formatRole(user.role)}
+                      {formattedRole}
                     </div>
                   </div>
 
@@ -320,4 +363,6 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
       </div>
     </nav>
   )
-}
+})
+
+export default TopNavBar
