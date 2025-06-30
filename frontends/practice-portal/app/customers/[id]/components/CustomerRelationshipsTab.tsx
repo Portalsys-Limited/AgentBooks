@@ -93,7 +93,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Customer Relationships</h2>
           <p className="text-sm text-gray-600">
-            Manage client associations and individual relationships for {relationshipsData.individual.full_name}
+            Manage client associations and individual relationships for this customer
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -161,21 +161,21 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                           <h4 className="text-sm font-medium text-gray-900">
                             {association.client.business_name}
                           </h4>
-                          {association.client.status && (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(association.client.status)}`}>
-                              {association.client.status}
+                          {association.relationship_type && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(association.relationship_type)}`}>
+                              {association.relationship_type.replace('_', ' ').toUpperCase()}
                             </span>
                           )}
                         </div>
-                        {association.client.trading_name && (
+                        {association.client.business_type && (
                           <p className="text-sm text-gray-500">
-                            Trading as: {association.client.trading_name}
+                            Business type: {association.client.business_type}
                           </p>
                         )}
-                        {association.client.created_at && (
+                        {association.created_at && (
                           <div className="flex items-center mt-1 text-xs text-gray-400">
                             <CalendarIcon className="h-3 w-3 mr-1" />
-                            Associated since {formatDate(association.client.created_at)}
+                            Associated since {formatDate(association.created_at)}
                           </div>
                         )}
                       </div>
@@ -267,16 +267,19 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <h4 className="text-sm font-medium text-gray-900">
-                            Individual Relationship
+                            {relationship.relationship_type || 'Individual Relationship'}
                           </h4>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             <LinkIcon className="h-3 w-3 mr-1" />
-                            Related
+                            {relationship.relationship_type || 'Related'}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-500">
-                          Relationship ID: {relationship.id}
-                        </p>
+                        <div className="text-sm text-gray-500">
+                          {relationship.description && (
+                            <p>{relationship.description}</p>
+                          )}
+                          <p className="text-xs">ID: {relationship.id}</p>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">

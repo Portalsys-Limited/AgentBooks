@@ -57,7 +57,7 @@ export interface PropertyIndividualRelationship {
   notes?: string
   property_id: string
   individual_id: string
-  property: Property
+  property?: Property  // Made optional to handle backend loading issues
   created_at: string
   updated_at?: string
 }
@@ -100,8 +100,8 @@ export interface Individual {
   last_edited_by?: UserSummary
   
   // Related data
-  incomes: Income[]
-  property_relationships: PropertyIndividualRelationship[]
+  incomes?: Income[]
+  property_relationships?: PropertyIndividualRelationship[]
 }
 
 // Client type
@@ -109,8 +109,9 @@ export interface Client {
   id: string
   business_name: string
   trading_name?: string
-  status?: string
-  created_at?: string
+  business_type?: string
+  main_phone?: string
+  main_email?: string
 }
 
 // User summary type
@@ -232,14 +233,40 @@ export interface DocumentResponse {
 }
 
 // Individual relationship response
+export interface RelatedIndividualSummary {
+  id: string
+  first_name: string
+  last_name: string
+  full_name: string
+  email?: string
+}
+
 export interface IndividualRelationshipResponse {
   id: string
-  // Add relationship fields as needed
+  from_individual_id: string
+  to_individual_id: string
+  relationship_type: string
+  description?: string
+  from_individual: RelatedIndividualSummary
+  to_individual: RelatedIndividualSummary
+  created_at: string
+  updated_at?: string
 }
 
 // Customer client association with client
 export interface CustomerClientAssociationWithClient {
   id: string
+  customer_id: string
+  client_id: string
+  relationship_type: string
+  percentage_ownership?: string
+  appointment_date?: string
+  resignation_date?: string
+  is_active?: string
+  is_primary_contact?: boolean
+  notes?: string
+  created_at: string
+  updated_at?: string
   client: Client
 }
 
@@ -281,8 +308,8 @@ export interface IndividualSummary {
   last_edited_by?: UserSummary
   
   // Related data
-  incomes: Income[]
-  property_relationships: PropertyIndividualRelationship[]
+  incomes?: Income[]
+  property_relationships?: PropertyIndividualRelationship[]
 }
 
 // Customer Info Tab Response
@@ -319,8 +346,6 @@ export interface CustomerInfoTabResponse {
 // Customer MLR Tab Response
 export interface CustomerMLRTabResponse {
   id: string
-  individual_id: string
-  individual: IndividualSummary
   mlr_status: string
   mlr_date_complete?: string
   passport_number?: string
@@ -334,8 +359,6 @@ export interface CustomerMLRTabResponse {
 // Customer Relationships Tab Response
 export interface CustomerRelationshipsTabResponse {
   id: string
-  individual_id: string
-  individual: IndividualSummary
   client_associations: CustomerClientAssociationWithClient[]
   individual_relationships: IndividualRelationshipResponse[]
 }
@@ -343,7 +366,5 @@ export interface CustomerRelationshipsTabResponse {
 // Customer Documents Tab Response
 export interface CustomerDocumentsTabResponse {
   id: string
-  individual_id: string
-  individual: IndividualSummary
   documents: DocumentResponse[]
 } 

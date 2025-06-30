@@ -415,7 +415,7 @@ export function CustomerInformationDisplay({
           icon={BanknotesIcon}
           isInitiallyExpanded={false}
         >
-          {editedCustomer.individual.incomes && editedCustomer.individual.incomes.length > 0 ? (
+          {editedCustomer.individual.incomes && Array.isArray(editedCustomer.individual.incomes) && editedCustomer.individual.incomes.length > 0 ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
                 {editedCustomer.individual.incomes.map((income) => (
@@ -456,42 +456,56 @@ export function CustomerInformationDisplay({
           icon={HomeIcon}
           isInitiallyExpanded={false}
         >
-          {editedCustomer.individual.property_relationships && editedCustomer.individual.property_relationships.length > 0 ? (
+          {editedCustomer.individual.property_relationships && Array.isArray(editedCustomer.individual.property_relationships) && editedCustomer.individual.property_relationships.length > 0 ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4">
-                {editedCustomer.individual.property_relationships.map((relationship) => (
-                  <div key={relationship.id} className="bg-gray-50 p-4 rounded-lg border">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h5 className="font-medium text-gray-900">{relationship.property.property_name}</h5>
-                        <p className="text-sm text-gray-600">{capitalize(relationship.property.property_type)}</p>
-                        <p className="text-xs text-blue-600 font-medium">
-                          {capitalize(relationship.ownership_type)} - {relationship.ownership_percentage}%
-                          {relationship.is_primary_owner && ' (Primary Owner)'}
-                        </p>
+                {editedCustomer.individual.property_relationships.map((relationship) => {
+                  // Handle cases where property data might not be fully loaded
+                  const property = relationship.property || {} as any;
+                  
+                  return (
+                    <div key={relationship.id} className="bg-gray-50 p-4 rounded-lg border">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h5 className="font-medium text-gray-900">
+                            {property.property_name || 'Property Name Not Available'}
+                          </h5>
+                          <p className="text-sm text-gray-600">
+                            {property.property_type ? capitalize(property.property_type) : 'Type Not Available'}
+                          </p>
+                          <p className="text-xs text-blue-600 font-medium">
+                            {relationship.ownership_type ? capitalize(relationship.ownership_type) : 'Ownership Type Not Available'} - {relationship.ownership_percentage || 0}%
+                            {relationship.is_primary_owner && ' (Primary Owner)'}
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          property.property_status === 'owned' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {property.property_status ? capitalize(property.property_status) : 'Unknown'}
+                        </span>
                       </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        relationship.property.property_status === 'owned' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {capitalize(relationship.property.property_status)}
-                      </span>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <p>
+                          {property.full_address || 
+                           (property.address_line_1 && property.town && property.post_code ? 
+                            `${property.address_line_1}, ${property.town}, ${property.post_code}` : 
+                            'Address not available')}
+                        </p>
+                        {property.current_value && (
+                          <p>Current Value: {formatCurrency(property.current_value)}</p>
+                        )}
+                        {property.monthly_rental_income && (
+                          <p>Monthly Rental: {formatCurrency(property.monthly_rental_income)}</p>
+                        )}
+                        {relationship.description && (
+                          <p className="text-xs text-gray-500 italic">{relationship.description}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p>{relationship.property.full_address || `${relationship.property.address_line_1}, ${relationship.property.town}, ${relationship.property.post_code}`}</p>
-                      {relationship.property.current_value && (
-                        <p>Current Value: {formatCurrency(relationship.property.current_value)}</p>
-                      )}
-                      {relationship.property.monthly_rental_income && (
-                        <p>Monthly Rental: {formatCurrency(relationship.property.monthly_rental_income)}</p>
-                      )}
-                      {relationship.description && (
-                        <p className="text-xs text-gray-500 italic">{relationship.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
                 + Add Property

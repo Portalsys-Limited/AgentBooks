@@ -299,12 +299,18 @@ async def get_customer_info(
     current_user: UserSchema = Depends(get_current_user)
 ):
     """Get customer info tab data"""
+    if not current_user.practice_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
+    
     query = select(Customer).options(
         selectinload(Customer.individual).selectinload(Individual.incomes),
         selectinload(Customer.individual).selectinload(Individual.property_relationships).selectinload(PropertyIndividualRelationship.property),
         selectinload(Customer.primary_accounting_contact),
         selectinload(Customer.last_edited_by)
-    ).where(Customer.id == customer_id)
+    ).where(
+        Customer.id == customer_id,
+        Customer.practice_id == current_user.practice_id
+    )
     
     result = await db.execute(query)
     customer = result.scalar_one_or_none()
@@ -321,10 +327,16 @@ async def get_customer_mlr(
     current_user: UserSchema = Depends(get_current_user)
 ):
     """Get customer MLR tab data"""
+    if not current_user.practice_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
+    
+    # Check if customer exists and get MLR data
     query = select(Customer).options(
-        selectinload(Customer.individual),
         selectinload(Customer.last_edited_by)
-    ).where(Customer.id == customer_id)
+    ).where(
+        Customer.id == customer_id,
+        Customer.practice_id == current_user.practice_id
+    )
     
     result = await db.execute(query)
     customer = result.scalar_one_or_none()
@@ -332,7 +344,18 @@ async def get_customer_mlr(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
-    return customer
+    # Create response manually without using from_orm to avoid relationship loading issues
+    return CustomerMLRTabResponse(
+        id=customer.id,
+        mlr_status=customer.mlr_status,
+        mlr_date_complete=customer.mlr_date_complete,
+        passport_number=customer.passport_number,
+        driving_license=customer.driving_license,
+        uk_home_telephone=customer.uk_home_telephone,
+        last_edited=customer.last_edited,
+        last_edited_by_id=customer.last_edited_by_id,
+        last_edited_by=customer.last_edited_by
+    )
 
 @router.get("/{customer_id}/relationships", response_model=CustomerRelationshipsTabResponse)
 async def get_customer_relationships(
@@ -341,10 +364,16 @@ async def get_customer_relationships(
     current_user: UserSchema = Depends(get_current_user)
 ):
     """Get customer relationships tab data"""
+    if not current_user.practice_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
+    
+    # Check if customer exists and get relationship data
     query = select(Customer).options(
-        selectinload(Customer.individual),
         selectinload(Customer.client_associations).selectinload(CustomerClientAssociation.client)
-    ).where(Customer.id == customer_id)
+    ).where(
+        Customer.id == customer_id,
+        Customer.practice_id == current_user.practice_id
+    )
     
     result = await db.execute(query)
     customer = result.scalar_one_or_none()
@@ -352,19 +381,90 @@ async def get_customer_relationships(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
-    # Get individual relationships
-    individual_relationships_query = select(IndividualRelationship).where(
-        (IndividualRelationship.from_individual_id == customer.individual_id) |
-        (IndividualRelationship.to_individual_id == customer.individual_id)
-    )
-    individual_relationships_result = await db.execute(individual_relationships_query)
-    individual_relationships = individual_relationships_result.scalars().all()
+    # Get individual relationships with related individuals loaded, filtered by practice
+    try:
+        individual_relationships_query = select(IndividualRelationship).options(
+            selectinload(IndividualRelationship.from_individual),
+            selectinload(IndividualRelationship.to_individual)
+        ).where(
+            IndividualRelationship.practice_id == current_user.practice_id,
+            (IndividualRelationship.from_individual_id == customer.individual_id) |
+            (IndividualRelationship.to_individual_id == customer.individual_id)
+        )
+        individual_relationships_result = await db.execute(individual_relationships_query)
+        individual_relationships = individual_relationships_result.scalars().all()
+    except Exception as e:
+        logging.error(f"Error loading individual relationships: {e}")
+        individual_relationships = []
     
-    # Add individual relationships to the response
-    response = CustomerRelationshipsTabResponse.from_orm(customer)
-    response.individual_relationships = individual_relationships
-    
-    return response
+    # Create response manually by converting SQLAlchemy objects to dicts
+    try:
+        # Convert client associations to response format
+        client_associations_data = []
+        for assoc in customer.client_associations:
+            client_associations_data.append({
+                "id": assoc.id,
+                "customer_id": assoc.customer_id,
+                "client_id": assoc.client_id,
+                "relationship_type": assoc.relationship_type.value if assoc.relationship_type else None,
+                "percentage_ownership": assoc.percentage_ownership,
+                "appointment_date": assoc.appointment_date.isoformat() if assoc.appointment_date else None,
+                "resignation_date": assoc.resignation_date.isoformat() if assoc.resignation_date else None,
+                "is_active": assoc.is_active,
+                "is_primary_contact": assoc.is_primary_contact,
+                "notes": assoc.notes,
+                "created_at": assoc.created_at.isoformat() if assoc.created_at else None,
+                "updated_at": assoc.updated_at.isoformat() if assoc.updated_at else None,
+                "client": {
+                    "id": assoc.client.id,
+                    "business_name": assoc.client.business_name,
+                    "trading_name": None,  # Client model doesn't have trading_name
+                    "business_type": assoc.client.business_type.value if assoc.client.business_type else None,
+                    "main_phone": assoc.client.main_phone,
+                    "main_email": assoc.client.main_email
+                }
+            })
+        
+        # Convert individual relationships to response format
+        individual_relationships_data = []
+        for rel in individual_relationships:
+            individual_relationships_data.append({
+                "id": rel.id,
+                "from_individual_id": rel.from_individual_id,
+                "to_individual_id": rel.to_individual_id,
+                "relationship_type": rel.relationship_type.value if rel.relationship_type else None,
+                "description": rel.description,
+                "from_individual": {
+                    "id": rel.from_individual.id,
+                    "first_name": rel.from_individual.first_name,
+                    "last_name": rel.from_individual.last_name,
+                    "full_name": rel.from_individual.full_name,
+                    "email": rel.from_individual.email
+                } if rel.from_individual else None,
+                "to_individual": {
+                    "id": rel.to_individual.id,
+                    "first_name": rel.to_individual.first_name,
+                    "last_name": rel.to_individual.last_name,
+                    "full_name": rel.to_individual.full_name,
+                    "email": rel.to_individual.email
+                } if rel.to_individual else None,
+                "created_at": rel.created_at.isoformat() if rel.created_at else None,
+                "updated_at": rel.updated_at.isoformat() if rel.updated_at else None
+            })
+        
+        return CustomerRelationshipsTabResponse(
+            id=customer.id,
+            client_associations=client_associations_data,
+            individual_relationships=individual_relationships_data
+        )
+    except Exception as e:
+        logging.error(f"Error creating response: {e}")
+        # Return a minimal response in case of serialization issues
+        return CustomerRelationshipsTabResponse(
+            id=customer.id,
+            client_associations=[],
+            individual_relationships=[]
+        )
 
 @router.get("/{customer_id}/documents", response_model=CustomerDocumentsTabResponse)
 async def get_customer_documents(
@@ -373,13 +473,16 @@ async def get_customer_documents(
     current_user: UserSchema = Depends(get_current_user)
 ):
     """Get customer documents tab data"""
-    # Get customer with individual relationship
-    query = select(Customer).options(
-        selectinload(Customer.individual)
-    ).where(Customer.id == customer_id)
+    if not current_user.practice_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
     
-    result = await db.execute(query)
-    customer = result.scalar_one_or_none()
+    # Check if customer exists
+    customer_query = select(Customer).where(
+        Customer.id == customer_id,
+        Customer.practice_id == current_user.practice_id
+    )
+    customer_result = await db.execute(customer_query)
+    customer = customer_result.scalar_one_or_none()
     
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -395,8 +498,8 @@ async def get_customer_documents(
     documents_result = await db.execute(documents_query)
     documents = documents_result.scalars().all()
     
-    # Create response
-    response = CustomerDocumentsTabResponse.from_orm(customer)
-    response.documents = documents
-    
-    return response
+    # Create response manually without using from_orm to avoid relationship loading issues
+    return CustomerDocumentsTabResponse(
+        id=customer.id,
+        documents=documents
+    )
