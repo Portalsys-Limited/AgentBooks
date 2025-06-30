@@ -18,7 +18,6 @@ import { BaseEntity, ContactFields, AddressFields } from '../shared/types'
  */
 export interface Client extends BaseEntity, ContactFields, AddressFields {
   name: string                    // The official business name (e.g., "ABC Limited")
-  trading_name?: string          // What they're known as publicly (e.g., "ABC Coffee")
   business_type?: string         // Type of business (e.g., "Limited Company", "Sole Trader")
   type: 'client'                // Internal marker to identify this as a client record
   customer_name?: string        // Legacy field - name of associated customer
@@ -65,7 +64,6 @@ export interface Service {
  */
 export interface CreateClientData extends ContactFields, AddressFields {
   name: string                  // Business name (required)
-  trading_name?: string        // Trading name (optional)
   business_type?: string       // Business structure (optional)
   auto_fill_companies_house?: boolean  // Should we try to get info from Companies House?
 }
@@ -170,7 +168,6 @@ export interface DetailedClientResponse {
   // Basic business information
   id: string
   business_name: string
-  trading_name?: string
   business_type?: string
   companies_house_number?: string
   vat_number?: string

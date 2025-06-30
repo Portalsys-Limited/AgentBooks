@@ -115,14 +115,13 @@ async def get_client_details(
     return {
         "id": str(client.id),
         "business_name": client.business_name,
-        "trading_name": client.trading_name,
         "business_type": client.business_type.value if client.business_type else None,
-        "companies_house_number": client.companies_house_number,
+        "companies_house_number": client.company_number,
         "vat_number": client.vat_number,
         "corporation_tax_utr": client.corporation_tax_utr,
         "paye_reference": client.payroll_scheme_reference,
         "nature_of_business": client.nature_of_business,
-        "sic_code": client.industry_sector,
+        "sic_code": client.nature_of_business,
         "incorporation_date": client.date_of_incorporation.isoformat() if client.date_of_incorporation else None,
         "accounting_period_end": client.year_end_date.isoformat() if client.year_end_date else None,
         "main_email": client.main_email,
@@ -208,16 +207,13 @@ async def create_client(
             
             # Basic business information
             business_name=client_data.business_name,
-            trading_name=client_data.trading_name,
             business_type=client_data.business_type,
             nature_of_business=client_data.nature_of_business,
-            industry_sector=client_data.industry_sector,
         )
         
         # Registration details
-        client.companies_house_number = client_data.companies_house_number
+        client.company_number = client_data.companies_house_number
         client.date_of_incorporation = client_data.date_of_incorporation
-        client.country_of_incorporation = client_data.country_of_incorporation
         
         # Tax information
         client.corporation_tax_utr = client_data.corporation_tax_utr
@@ -239,7 +235,6 @@ async def create_client(
         client.registered_country = client_data.registered_country
         
         # Trading address
-        client.trading_same_as_registered = client_data.trading_same_as_registered
         client.trading_address_line1 = client_data.trading_address_line1
         client.trading_address_line2 = client_data.trading_address_line2
         client.trading_city = client_data.trading_city
@@ -287,12 +282,12 @@ async def create_client(
         await db.refresh(client)
         
         # Auto-fill from Companies House if requested and company number provided
-        if auto_fill_companies_house and client.companies_house_number:
+        if auto_fill_companies_house and client.company_number:
             try:
                 await companies_house_service.create_or_update_companies_house_profile(
                     db=db,
                     client_id=client.id,
-                    company_number=client.companies_house_number
+                    company_number=client.company_number
                 )
                 await db.refresh(client)
             except Exception as e:
@@ -366,22 +361,16 @@ async def update_client(
         # Update basic business information
         if client_data.business_name is not None:
             client.business_name = client_data.business_name
-        if client_data.trading_name is not None:
-            client.trading_name = client_data.trading_name
         if client_data.business_type is not None:
             client.business_type = client_data.business_type
         if client_data.nature_of_business is not None:
             client.nature_of_business = client_data.nature_of_business
-        if client_data.industry_sector is not None:
-            client.industry_sector = client_data.industry_sector
         
         # Update registration details
         if client_data.companies_house_number is not None:
-            client.companies_house_number = client_data.companies_house_number
+            client.company_number = client_data.companies_house_number
         if client_data.date_of_incorporation is not None:
             client.date_of_incorporation = client_data.date_of_incorporation
-        if client_data.country_of_incorporation is not None:
-            client.country_of_incorporation = client_data.country_of_incorporation
         
         # Update tax information
         if client_data.corporation_tax_utr is not None:
@@ -414,10 +403,6 @@ async def update_client(
             client.registered_postcode = client_data.registered_postcode
         if client_data.registered_country is not None:
             client.registered_country = client_data.registered_country
-        
-        # Update trading address setting
-        if client_data.trading_same_as_registered is not None:
-            client.trading_same_as_registered = client_data.trading_same_as_registered
         
         # Update trading address
         if client_data.trading_address_line1 is not None:
@@ -580,7 +565,7 @@ async def trigger_companies_house_auto_fill(
         )
     
     # Check if client has a companies_house_number
-    if not client.companies_house_number:
+    if not client.company_number:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Client must have a companies_house_number set before auto-filling. Please set the companies_house_number field first."
@@ -591,7 +576,7 @@ async def trigger_companies_house_auto_fill(
         ch_profile = await companies_house_service.create_or_update_companies_house_profile(
             db=db,
             client_id=client_id,
-            company_number=client.companies_house_number
+            company_number=client.company_number
         )
         
         # Refresh client to get updated data
@@ -603,7 +588,7 @@ async def trigger_companies_house_auto_fill(
             "client": {
                 "id": str(client.id),
                 "business_name": client.business_name,
-                "companies_house_number": client.companies_house_number,
+                "companies_house_number": client.company_number,
                 "last_updated": client.last_companies_house_update.isoformat() if client.last_companies_house_update else None
             },
             "companies_house_profile": {

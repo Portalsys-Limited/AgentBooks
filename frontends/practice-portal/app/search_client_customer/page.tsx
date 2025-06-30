@@ -245,11 +245,6 @@ export default function SearchClientCustomerPage() {
                                   <div className="ml-4">
                                     <div className="text-sm font-medium text-gray-900">
                                       {client.name}
-                                      {client.trading_name && client.trading_name !== client.name && (
-                                        <span className="text-gray-500 ml-2">
-                                          (Trading as: {client.trading_name})
-                                        </span>
-                                      )}
                                     </div>
                                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                                       {client.business_type && (

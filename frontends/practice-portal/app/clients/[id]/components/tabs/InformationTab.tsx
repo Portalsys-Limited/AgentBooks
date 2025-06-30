@@ -15,7 +15,6 @@ import CollapsibleSection from '../CollapsibleSection'
 interface ClientDetail {
   id: string
   business_name: string
-  trading_name?: string
   business_type?: string
   companies_house_number?: string
   vat_number?: string
@@ -84,7 +83,6 @@ export default function InformationTab({ client, onFieldChange }: InformationTab
           onFieldChange={onFieldChange}
           fields={[
             { key: 'business_name', label: 'Business Name', value: client.business_name },
-            { key: 'trading_name', label: 'Trading Name', value: client.trading_name },
             { key: 'business_type', label: 'Business Type', value: client.business_type },
             { key: 'companies_house_number', label: 'Companies House Number', value: client.companies_house_number },
             { key: 'vat_number', label: 'VAT Number', value: client.vat_number },

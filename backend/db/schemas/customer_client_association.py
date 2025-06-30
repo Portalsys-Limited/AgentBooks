@@ -50,7 +50,6 @@ class CustomerSummary(BaseModel):
 class ClientSummary(BaseModel):
     id: UUID
     business_name: str
-    trading_name: Optional[str] = None
     business_type: Optional[str] = None
     main_phone: Optional[str] = None
     main_email: Optional[str] = None
