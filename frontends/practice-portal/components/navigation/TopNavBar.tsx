@@ -12,7 +12,9 @@ import {
   UserIcon,
   BuildingOfficeIcon,
   MagnifyingGlassIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  SparklesIcon,
+  CommandLineIcon
 } from '@heroicons/react/24/outline'
 import { search } from '../../lib/search/service'
 import { SearchResult } from '../../lib/search/types'
@@ -30,6 +32,7 @@ const TopNavBar = React.memo(({ user, onLogout }: TopNavBarProps) => {
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [isMaxMode, setIsMaxMode] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   
   // Cache user display name
@@ -134,8 +137,131 @@ const TopNavBar = React.memo(({ user, onLogout }: TopNavBarProps) => {
   }
 
   return (
-    <nav className="bg-gradient-to-r from-blue-700/95 via-blue-600/80 to-blue-700/95 shadow-sm border-b border-blue-600/40 px-2 sm:px-4 lg:px-6">
-            <div className="grid grid-cols-3 h-16 relative">
+    <>
+      {/* Add custom styles for animations */}
+      <style jsx global>{`
+        @keyframes subtleSearchGlow {
+          0%, 100% {
+            box-shadow: 
+              0 0 0 1px rgba(255, 255, 255, 0.2),
+              0 0 2px rgba(255, 255, 255, 0.2),
+              0 0 4px rgba(59, 130, 246, 0.1);
+          }
+          50% {
+            box-shadow: 
+              0 0 0 1px rgba(255, 255, 255, 0.3),
+              0 0 4px rgba(255, 255, 255, 0.25),
+              0 0 8px rgba(59, 130, 246, 0.15);
+          }
+        }
+
+        @keyframes maxSearchGlow {
+          0% {
+            box-shadow: 
+              0 0 0 2px #ff6b6b,
+              0 0 8px rgba(255, 107, 107, 0.3),
+              0 0 12px rgba(255, 107, 107, 0.1);
+          }
+          25% {
+            box-shadow: 
+              0 0 0 2px #4ecdc4,
+              0 0 8px rgba(78, 205, 196, 0.3),
+              0 0 12px rgba(78, 205, 196, 0.1);
+          }
+          50% {
+            box-shadow: 
+              0 0 0 2px #45b7d1,
+              0 0 8px rgba(69, 183, 209, 0.3),
+              0 0 12px rgba(69, 183, 209, 0.1);
+          }
+          75% {
+            box-shadow: 
+              0 0 0 2px #96ceb4,
+              0 0 8px rgba(150, 206, 180, 0.3),
+              0 0 12px rgba(150, 206, 180, 0.1);
+          }
+          100% {
+            box-shadow: 
+              0 0 0 2px #ffeaa7,
+              0 0 8px rgba(255, 234, 167, 0.3),
+              0 0 12px rgba(255, 234, 167, 0.1);
+          }
+        }
+
+        .search-container {
+          border-radius: 9999px;
+          animation: subtleSearchGlow 3s ease-in-out infinite;
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(8px);
+        }
+
+        .search-container.max-mode {
+          animation: maxSearchGlow 4s ease-in-out infinite;
+        }
+
+        .search-input {
+          background: transparent;
+          transition: all 0.3s ease;
+        }
+
+        .max-toggle {
+          transition: all 0.3s ease;
+        }
+
+        .max-toggle:hover {
+          transform: scale(1.05);
+        }
+
+        .max-toggle.active {
+          background: transparent;
+        }
+
+        .max-text {
+          color: white;
+          transition: all 0.3s ease;
+        }
+
+        .max-text.active {
+          background: linear-gradient(
+            45deg,
+            #ff6b6b 0%,
+            #4ecdc4 25%,
+            #45b7d1 50%,
+            #96ceb4 75%,
+            #ffeaa7 100%
+          );
+          background-size: 200% 200%;
+          animation: gradientShift 3s ease infinite;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
+        }
+
+        @keyframes gradientShift {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+
+        .sparkles-icon {
+          transition: all 0.3s ease;
+        }
+
+        .sparkles-icon.active {
+          color: rgba(255, 255, 255, 0.9);
+          filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+        }
+      `}</style>
+      
+      <nav className="bg-gradient-to-r from-blue-700/95 via-blue-600/80 to-blue-700/95 shadow-sm border-b border-blue-600/40 px-2 sm:px-4 lg:px-6">
+        <div className="grid grid-cols-3 h-16 relative">
           {/* Left side - Logo, Brand, and Back button */}
           <div className="flex items-center space-x-4 justify-start">
           {/* Logo and Brand */}
@@ -159,24 +285,46 @@ const TopNavBar = React.memo(({ user, onLogout }: TopNavBarProps) => {
         {/* Center - Search Bar */}
         <div className="flex items-center justify-center col-span-1" ref={searchRef}>
           <div className="w-[33.333vw] relative">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-6 w-6 text-white z-20 drop-shadow-lg shadow-white animate-pulse" />
+                          <div className={`relative search-container ${isMaxMode ? 'max-mode' : ''}`}>
+              {/* Left icon */}
+              {isMaxMode ? (
+                <SparklesIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-6 w-6 text-white/80 sparkles-icon active animate-pulse z-20" />
+              ) : (
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-6 w-6 text-white/80 z-20" />
+              )}
+              
+              {/* Search input */}
               <input
                 type="text"
-                placeholder={displayedPlaceholder}
+                placeholder={isMaxMode ? "Chat with MAX..." : displayedPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-1.5 text-sm border border-white/20 rounded-full focus:ring-2 focus:ring-white/50 focus:border-white/50 bg-white/10 shadow-lg backdrop-blur-sm hover:bg-white/20 hover:border-white/30 transition-all duration-300 text-white placeholder-white/60 after:content-['|'] after:animate-blink"
+                className="w-full pl-12 pr-20 py-1.5 text-sm rounded-full border border-white/20 focus:outline-none focus:border-white/40 search-input text-white placeholder-white/60"
               />
-              {isSearching && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+
+              {/* Right side buttons */}
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                                  {/* MAX toggle button */}
+                                    <button
+                    onClick={() => setIsMaxMode(!isMaxMode)}
+                    className={`max-toggle p-1.5 rounded-full flex items-center justify-center transition-all ${
+                      isMaxMode ? 'active' : ''
+                    }`}
+                  >
+                    <span className={`text-xs font-medium max-text ${isMaxMode ? 'active' : ''}`}>
+                      MAX
+                    </span>
+                  </button>
+
+                {/* Loading spinner */}
+                {isSearching && (
                   <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Search Results Dropdown */}
-            {showResults && searchResults && (
+            {!isMaxMode && showResults && searchResults && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                 {searchResults.clients.length === 0 && searchResults.customers.length === 0 ? (
                   <div className="px-4 py-3 text-sm text-gray-500">
@@ -362,6 +510,7 @@ const TopNavBar = React.memo(({ user, onLogout }: TopNavBarProps) => {
         </div>
       </div>
     </nav>
+    </>
   )
 })
 
