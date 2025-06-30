@@ -235,7 +235,7 @@ export default function CustomerMLRTab({ customerId }: CustomerMLRTabProps) {
           </div>
           <div>
             <h3 className="text-lg font-medium text-gray-900">MLR Status Overview</h3>
-            <p className="text-sm text-gray-600">Current compliance status for {mlrData.individual.full_name}</p>
+            <p className="text-sm text-gray-600">Current compliance status for this customer</p>
           </div>
         </div>
 

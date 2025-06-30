@@ -121,7 +121,7 @@ export default function CustomerDocumentsTab({ customerId }: CustomerDocumentsTa
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Customer Documents</h2>
           <p className="text-sm text-gray-600">
-            Manage documents for {documentsData.individual.full_name}
+            Manage documents for this customer
           </p>
         </div>
         <div className="flex items-center space-x-3">

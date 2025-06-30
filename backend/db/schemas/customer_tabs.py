@@ -94,8 +94,6 @@ class CustomerInfoTabResponse(BaseModel):
 # MLR Tab Response
 class CustomerMLRTabResponse(BaseModel):
     id: UUID
-    individual_id: UUID
-    individual: IndividualSummary
     
     mlr_status: MLRStatus
     mlr_date_complete: Optional[date] = None
@@ -113,8 +111,6 @@ class CustomerMLRTabResponse(BaseModel):
 # Relationships Tab Response
 class CustomerRelationshipsTabResponse(BaseModel):
     id: UUID
-    individual_id: UUID
-    individual: IndividualSummary
     
     # Client relationships
     client_associations: List[CustomerClientAssociationWithClient] = []
@@ -128,8 +124,6 @@ class CustomerRelationshipsTabResponse(BaseModel):
 # Documents Tab Response
 class CustomerDocumentsTabResponse(BaseModel):
     id: UUID
-    individual_id: UUID
-    individual: IndividualSummary
     
     # Document list
     documents: List[DocumentResponse] = []
