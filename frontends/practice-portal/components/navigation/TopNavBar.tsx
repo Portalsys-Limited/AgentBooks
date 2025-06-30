@@ -85,18 +85,31 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
   }
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 px-2 sm:px-4 lg:px-6">
+    <nav className="bg-[#0077b6] shadow-sm border-b border-blue-700 px-2 sm:px-4 lg:px-6">
       <div className="flex justify-between h-16">
-        {/* Left side - Back button and Logo */}
-        <div className="flex items-center">
+        {/* Left side - Logo, Brand, and Back button */}
+        <div className="flex items-center space-x-4">
+          {/* Logo and Brand */}
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+              <img
+                src="/LogoOnly.png"
+                alt="AgentBooks Logo"
+                className="w-10 h-10 object-contain filter brightness-0 invert"
+              />
+            </div>
+          </div>
+          
+          {/* Divider */}
+          <div className="h-8 w-px bg-blue-400"></div>
+          
+          {/* Back button */}
           <button
             onClick={() => router.back()}
-            className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 mr-2"
+            className="p-2 text-blue-100 hover:text-white hover:bg-[#06b3e8] rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
           >
             <ArrowLeftIcon className="h-6 w-6" />
           </button>
-          <div className="flex items-center space-x-3">
-          </div>
         </div>
 
         {/* Center - Search Bar */}
@@ -109,7 +122,7 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                 placeholder="Search clients & customers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white shadow-sm"
               />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -120,7 +133,7 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
 
             {/* Search Results Dropdown */}
             {showResults && searchResults && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                 {searchResults.clients.length === 0 && searchResults.customers.length === 0 ? (
                   <div className="px-4 py-3 text-sm text-gray-500">
                     No results found
@@ -130,19 +143,19 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                     {/* Clients */}
                     {searchResults.clients.length > 0 && (
                       <div>
-                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-blue-50 border-b border-gray-100">
                           Clients
                         </div>
                         {searchResults.clients.map((client) => (
                           <button
                             key={`client-${client.id}`}
                             onClick={() => handleSearchResultClick('client', client.id)}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
+                            className="w-full px-4 py-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-blue-50 transition-colors"
                           >
                             <div className="flex items-center space-x-3">
                               <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                  <BuildingOfficeIcon className="w-4 h-4 text-green-600" />
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <BuildingOfficeIcon className="w-4 h-4 text-blue-600" />
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
@@ -150,7 +163,7 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                                   {client.name}
                                 </div>
                                 {client.business_type && (
-                                  <div className="text-xs text-gray-400 truncate">
+                                  <div className="text-xs text-gray-500 truncate">
                                     {client.business_type.replace('_', ' ')}
                                   </div>
                                 )}
@@ -164,19 +177,19 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                     {/* Customers */}
                     {searchResults.customers.length > 0 && (
                       <div>
-                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-blue-50 border-b border-gray-100">
                           Customers
                         </div>
                         {searchResults.customers.map((customer) => (
                           <button
                             key={`customer-${customer.id}`}
                             onClick={() => handleSearchResultClick('customer', customer.id)}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
+                            className="w-full px-4 py-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-blue-50 transition-colors"
                           >
                             <div className="flex items-center space-x-3">
                               <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <UserIcon className="w-4 h-4 text-blue-600" />
+                                <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                                  <UserIcon className="w-4 h-4 text-slate-600" />
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
@@ -184,7 +197,7 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                                   {customer.name}
                                 </div>
                                 {customer.email && (
-                                  <div className="text-xs text-gray-400 truncate">
+                                  <div className="text-xs text-gray-500 truncate">
                                     {customer.email}
                                   </div>
                                 )}
@@ -206,19 +219,19 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
           {/* Notifications */}
           <button
             type="button"
-            className="relative p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="relative p-2 text-blue-100 hover:text-white hover:bg-[#06b3e8] rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
           >
             <span className="sr-only">View notifications</span>
             <BellIcon className="h-6 w-6" />
             {/* Notification badge */}
-            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
+            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-blue-600"></span>
           </button>
 
           {/* Settings */}
           <button
             type="button"
             onClick={() => router.push('/settings')}
-            className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-2 text-blue-100 hover:text-white hover:bg-[#06b3e8] rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
           >
             <span className="sr-only">Settings</span>
             <Cog6ToothIcon className="h-6 w-6" />
@@ -229,37 +242,37 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
             <button
               type="button"
               onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-              className="flex items-center space-x-3 p-2 text-sm rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex items-center space-x-3 p-2 text-sm rounded-lg hover:bg-[#06b3e8] focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors"
             >
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
                   <UserIcon className="h-5 w-5 text-blue-600" />
                 </div>
                 <div className="hidden md:block text-left">
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-sm font-medium text-white">
                     {getUserDisplayName()}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-blue-100">
                     {formatRole(user.role)}
                   </div>
                 </div>
-                <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+                <ChevronDownIcon className="h-4 w-4 text-blue-100" />
               </div>
             </button>
 
             {/* Dropdown menu */}
             {isProfileDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+              <div className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                 <div className="py-1">
                   {/* User info */}
                   <div className="px-4 py-3 border-b border-gray-100">
                     <div className="text-sm font-medium text-gray-900">
                       {getUserDisplayName()}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-600">
                       {user.email}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-gray-500 mt-1">
                       {formatRole(user.role)}
                     </div>
                   </div>
@@ -270,9 +283,9 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                       router.push('/profile')
                       setIsProfileDropdownOpen(false)
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-900 flex items-center transition-colors"
                   >
-                    <UserCircleIcon className="h-4 w-4 mr-3" />
+                    <UserCircleIcon className="h-4 w-4 mr-3 text-gray-500" />
                     Your Profile
                   </button>
 
@@ -281,9 +294,9 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                       router.push('/settings')
                       setIsProfileDropdownOpen(false)
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-900 flex items-center transition-colors"
                   >
-                    <Cog6ToothIcon className="h-4 w-4 mr-3" />
+                    <Cog6ToothIcon className="h-4 w-4 mr-3 text-gray-500" />
                     Settings
                   </button>
 
@@ -294,9 +307,9 @@ export default function TopNavBar({ user, onLogout }: TopNavBarProps) {
                       onLogout()
                       setIsProfileDropdownOpen(false)
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-900 flex items-center transition-colors"
                   >
-                    <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                    <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3 text-gray-500" />
                     Sign out
                   </button>
                 </div>

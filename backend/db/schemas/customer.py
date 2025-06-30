@@ -63,7 +63,6 @@ class IndividualSummary(BaseModel):
 class ClientSummary(BaseModel):
     id: UUID
     business_name: str
-    trading_name: Optional[str] = None
     
     class Config:
         from_attributes = True

@@ -418,7 +418,6 @@ async def get_customer_relationships(
                 "client": {
                     "id": assoc.client.id,
                     "business_name": assoc.client.business_name,
-                    "trading_name": None,  # Client model doesn't have trading_name
                     "business_type": assoc.client.business_type.value if assoc.client.business_type else None,
                     "main_phone": assoc.client.main_phone,
                     "main_email": assoc.client.main_email
