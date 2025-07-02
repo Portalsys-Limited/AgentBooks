@@ -19,8 +19,18 @@ class CustomerClientAssociationBase(BaseModel):
 
 # Schema for creating a new association
 class CustomerClientAssociationCreate(CustomerClientAssociationBase):
-    customer_id: UUID
     client_id: UUID
+
+# Schema for creating via customer endpoint (without customer_id in request body)
+class CustomerClientAssociationCreateRequest(BaseModel):
+    client_id: UUID
+    relationship_type: str  # Accept string, will validate against enum in endpoint
+    percentage_ownership: Optional[str] = None
+    appointment_date: Optional[str] = None  # Accept ISO date string
+    resignation_date: Optional[str] = None  # Accept ISO date string
+    is_active: Optional[str] = "active"
+    is_primary_contact: Optional[bool] = False
+    notes: Optional[str] = None
 
 
 # Schema for updating an association
@@ -37,11 +47,18 @@ class CustomerClientAssociationUpdate(BaseModel):
 # Summary schemas for nested responses
 class CustomerSummary(BaseModel):
     id: UUID
-    name: str
+    individual_id: UUID
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    primary_email: Optional[str] = None
-    primary_phone: Optional[str] = None
+    email: Optional[str] = None  # From individual
+    primary_mobile: Optional[str] = None  # From individual
+    
+    @property
+    def name(self) -> str:
+        """Computed name from first_name and last_name"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return "Unknown"
     
     class Config:
         from_attributes = True

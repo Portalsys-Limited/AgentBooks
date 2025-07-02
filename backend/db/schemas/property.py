@@ -6,6 +6,17 @@ from decimal import Decimal
 
 from db.models.property import PropertyType, PropertyStatus
 
+# Individual summary for relationship responses (to avoid circular imports)
+class IndividualSummary(BaseModel):
+    id: UUID
+    first_name: str
+    last_name: str
+    full_name: str
+    email: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 # Individual relationship summary for property responses (to avoid circular imports)
 class IndividualRelationshipSummary(BaseModel):
     id: UUID
@@ -18,10 +29,7 @@ class IndividualRelationshipSummary(BaseModel):
     
     # Individual summary
     individual_id: UUID
-    individual_first_name: str
-    individual_last_name: str
-    individual_full_name: str
-    individual_email: Optional[str] = None
+    individual: IndividualSummary
     
     class Config:
         from_attributes = True

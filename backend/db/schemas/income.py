@@ -16,7 +16,6 @@ class IncomeBase(BaseModel):
 
 # Income creation schema
 class IncomeCreateRequest(BaseModel):
-    individual_id: UUID
     income_type: IncomeType
     income_amount: Decimal
     description: Optional[str] = None

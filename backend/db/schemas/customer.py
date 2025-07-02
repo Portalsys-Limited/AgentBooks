@@ -198,4 +198,19 @@ class Customer(CustomerBase):
     updated_at: Optional[datetime] = None
     
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+# Customer accounting info update request
+class CustomerAccountingInfoUpdate(BaseModel):
+    ni_number: Optional[str] = None
+    personal_utr_number: Optional[str] = None
+    do_they_own_sa: Optional[bool] = None
+    comments: Optional[str] = None
+    notes: Optional[str] = None
+
+class CustomerMLRInfoUpdate(BaseModel):
+    mlr_status: Optional[MLRStatus] = None
+    mlr_date_complete: Optional[date] = None
+    passport_number: Optional[str] = None
+    driving_license: Optional[str] = None
+    uk_home_telephone: Optional[str] = None 

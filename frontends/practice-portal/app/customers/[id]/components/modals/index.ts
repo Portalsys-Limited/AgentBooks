@@ -1,0 +1,5 @@
+export { default as BaseModal } from './BaseModal'
+export { default as IncomeModal } from './IncomeModal'
+export { default as PropertyModal } from './PropertyModal'
+export { default as ClientAssociationModal } from './ClientAssociationModal'
+export { default as IndividualRelationshipModal } from './IndividualRelationshipModal' 

@@ -42,7 +42,7 @@ class PropertyIndividualRelationship(Base):
     
     # Relationships
     property = relationship("Property", back_populates="individual_relationships")
-    individual = relationship("Individual", back_populates="property_relationships")
+    individual = relationship("Individual", back_populates="property_relationships", lazy="selectin")
     
     def __repr__(self):
         return f"<PropertyIndividualRelationship(id={self.id}, property_id={self.property_id}, individual_id={self.individual_id}, type='{self.ownership_type}')>" 

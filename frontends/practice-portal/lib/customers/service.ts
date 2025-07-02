@@ -13,7 +13,18 @@ import {
   CustomerInfoTabResponse,
   CustomerMLRTabResponse,
   CustomerRelationshipsTabResponse,
-  CustomerDocumentsTabResponse
+  CustomerDocumentsTabResponse,
+  CustomerAccountingInfoUpdate,
+  CustomerMLRInfoUpdate,
+  CustomerClientAssociationCreate,
+  CustomerClientAssociationUpdate,
+  CustomerClientAssociationResponse,
+  IndividualRelationshipCreate,
+  IndividualRelationshipUpdate,
+  IndividualRelationshipResponse,
+  AvailableClient,
+  AvailableIndividual,
+  EnumOption
 } from './types'
 
 /**
@@ -76,7 +87,17 @@ export async function deleteCustomer(id: string): Promise<void> {
  * Get customer info tab data
  */
 export async function getCustomerInfo(id: string): Promise<CustomerInfoTabResponse> {
-  return api.get<CustomerInfoTabResponse>(`/customers/${id}/info`)
+  const response = await api.get<CustomerInfoTabResponse>(`/customers/${id}/info`)
+  
+  // Ensure arrays are initialized
+  if (!response.individual.incomes) {
+    response.individual.incomes = []
+  }
+  if (!response.individual.property_relationships) {
+    response.individual.property_relationships = []
+  }
+  
+  return response
 }
 
 /**
@@ -98,4 +119,126 @@ export async function getCustomerRelationships(id: string): Promise<CustomerRela
  */
 export async function getCustomerDocuments(id: string): Promise<CustomerDocumentsTabResponse> {
   return api.get<CustomerDocumentsTabResponse>(`/customers/${id}/documents`)
+}
+
+/**
+ * Update customer accounting and additional information
+ */
+export async function updateCustomerAccountingInfo(
+  id: string, 
+  data: CustomerAccountingInfoUpdate
+): Promise<CustomerInfoTabResponse> {
+  return api.put<CustomerInfoTabResponse>(`/customers/${id}/accounting-info`, data)
+}
+
+/**
+ * Update customer MLR information
+ */
+export async function updateCustomerMLRInfo(
+  id: string, 
+  data: CustomerMLRInfoUpdate
+): Promise<CustomerMLRTabResponse> {
+  return api.put<CustomerMLRTabResponse>(`/customers/${id}/mlr-info`, data)
+}
+
+// ==========================================
+// CUSTOMER-CLIENT ASSOCIATION FUNCTIONS
+// ==========================================
+
+/**
+ * Create customer-client association
+ */
+export async function createCustomerClientAssociation(
+  customerId: string,
+  data: CustomerClientAssociationCreate
+): Promise<CustomerClientAssociationResponse> {
+  return api.post<CustomerClientAssociationResponse>(`/customers/${customerId}/client-associations`, data)
+}
+
+/**
+ * Update customer-client association
+ */
+export async function updateCustomerClientAssociation(
+  customerId: string,
+  associationId: string,
+  data: CustomerClientAssociationUpdate
+): Promise<CustomerClientAssociationResponse> {
+  return api.put<CustomerClientAssociationResponse>(`/customers/${customerId}/client-associations/${associationId}`, data)
+}
+
+/**
+ * Delete customer-client association
+ */
+export async function deleteCustomerClientAssociation(
+  customerId: string,
+  associationId: string
+): Promise<void> {
+  return api.delete<void>(`/customers/${customerId}/client-associations/${associationId}`)
+}
+
+// ==========================================
+// INDIVIDUAL RELATIONSHIP FUNCTIONS
+// ==========================================
+
+/**
+ * Create individual relationship
+ */
+export async function createCustomerIndividualRelationship(
+  customerId: string,
+  data: IndividualRelationshipCreate
+): Promise<IndividualRelationshipResponse> {
+  return api.post<IndividualRelationshipResponse>(`/customers/${customerId}/individual-relationships`, data)
+}
+
+/**
+ * Update individual relationship
+ */
+export async function updateCustomerIndividualRelationship(
+  customerId: string,
+  relationshipId: string,
+  data: IndividualRelationshipUpdate
+): Promise<IndividualRelationshipResponse> {
+  return api.put<IndividualRelationshipResponse>(`/customers/${customerId}/individual-relationships/${relationshipId}`, data)
+}
+
+/**
+ * Delete individual relationship
+ */
+export async function deleteCustomerIndividualRelationship(
+  customerId: string,
+  relationshipId: string
+): Promise<void> {
+  return api.delete<void>(`/customers/${customerId}/individual-relationships/${relationshipId}`)
+}
+
+// ==========================================
+// HELPER FUNCTIONS FOR DROPDOWNS
+// ==========================================
+
+/**
+ * Get available clients for customer association
+ */
+export async function getAvailableClientsForCustomer(customerId: string): Promise<AvailableClient[]> {
+  return api.get<AvailableClient[]>(`/customers/${customerId}/available-clients`)
+}
+
+/**
+ * Get available individuals for relationship
+ */
+export async function getAvailableIndividualsForCustomer(customerId: string): Promise<AvailableIndividual[]> {
+  return api.get<AvailableIndividual[]>(`/customers/${customerId}/available-individuals`)
+}
+
+/**
+ * Get client relationship types
+ */
+export async function getClientRelationshipTypes(): Promise<EnumOption[]> {
+  return api.get<EnumOption[]>('/customers/enums/client-relationship-types')
+}
+
+/**
+ * Get individual relationship types
+ */
+export async function getIndividualRelationshipTypes(): Promise<EnumOption[]> {
+  return api.get<EnumOption[]>('/customers/enums/individual-relationship-types')
 } 
