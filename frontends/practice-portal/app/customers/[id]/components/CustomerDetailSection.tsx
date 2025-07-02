@@ -11,6 +11,18 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'
 import { CustomerInfoTabResponse } from '../../../../lib/customers/types'
+import { updateIndividual } from '../../../../lib/individuals/service'
+import { updateCustomerAccountingInfo } from '../../../../lib/customers/service'
+import { 
+  createIncome, 
+  updateIncome, 
+  deleteIncome,
+  createPropertyForIndividual,
+  updatePropertyRelationship,
+  deletePropertyRelationship
+} from '../../../../lib/individuals/service'
+import IncomeModal from './modals/IncomeModal'
+import PropertyModal from './modals/PropertyModal'
 
 interface CustomerDetailSectionProps {
   title: string
@@ -24,6 +36,7 @@ interface CustomerInformationDisplayProps {
   editedCustomer: CustomerInfoTabResponse
   isEditing: boolean
   onFieldChange: (path: string, value: any) => void
+  onSave: () => void
 }
 
 // Helper function to format dates
@@ -144,6 +157,52 @@ const AddressSearch = ({
   )
 }
 
+// Add a new ToggleField component
+const ToggleField = ({ 
+  label, 
+  value, 
+  onChange, 
+  isEditing 
+}: { 
+  label: string
+  value: boolean
+  onChange: (value: boolean) => void
+  isEditing: boolean
+}) => {
+  if (isEditing) {
+    return (
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-gray-700 tracking-wide mb-0.5">
+          {label}
+        </label>
+        <button
+          type="button"
+          onClick={() => onChange(!value)}
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+            value ? 'bg-blue-600' : 'bg-gray-200'
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              value ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+    )
+  }
+  // View mode
+  return (
+    <div className="space-y-0.5">
+      <div className="block text-xs text-gray-500 font-medium mb-0.5">{label}</div>
+      <div className="text-base font-medium text-gray-900">
+        {value ? 'Yes' : 'No'}
+      </div>
+    </div>
+  )
+}
+
 // Main collapsible section component
 export default function CustomerDetailSection({
   title,
@@ -189,8 +248,114 @@ export function CustomerInformationDisplay({
   customer,
   editedCustomer,
   isEditing,
-  onFieldChange
+  onFieldChange,
+  onSave
 }: CustomerInformationDisplayProps) {
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  
+  // Income editing states
+  const [showAddIncome, setShowAddIncome] = useState(false)
+  const [editingIncome, setEditingIncome] = useState<any>(null)
+  
+  // Property editing states
+  const [showAddProperty, setShowAddProperty] = useState(false)
+  const [editingProperty, setEditingProperty] = useState<any>(null)
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true)
+      setSaveStatus('idle')
+      
+      // Check which sections have been modified
+      const hasPersonalInfoChanges = Object.keys(editedCustomer.individual).some(key => 
+        editedCustomer.individual[key] !== customer.individual[key]
+      )
+
+      const hasAccountingInfoChanges = [
+        'ni_number',
+        'personal_utr_number',
+        'do_they_own_sa',
+        'comments',
+        'notes'
+      ].some(key => editedCustomer[key] !== customer[key])
+
+      // Save personal info if changed
+      if (hasPersonalInfoChanges) {
+        const individualUpdateData = {
+          personal_info: {
+            first_name: editedCustomer.individual.first_name,
+            last_name: editedCustomer.individual.last_name,
+            title: editedCustomer.individual.title || undefined,
+            middle_name: editedCustomer.individual.middle_name || undefined
+          },
+          contact_info: {
+            email: editedCustomer.individual.email || undefined,
+            secondary_email: editedCustomer.individual.secondary_email || undefined,
+            primary_mobile: editedCustomer.individual.primary_mobile || undefined,
+            secondary_mobile: editedCustomer.individual.secondary_mobile || undefined
+          },
+          address: {
+            line_1: editedCustomer.individual.address_line_1 || undefined,
+            line_2: editedCustomer.individual.address_line_2 || undefined,
+            town: editedCustomer.individual.town || undefined,
+            county: editedCustomer.individual.county || undefined,
+            country: editedCustomer.individual.country || undefined,
+            post_code: editedCustomer.individual.post_code || undefined
+          },
+          personal_details: {
+            date_of_birth: editedCustomer.individual.date_of_birth || undefined,
+            deceased_date: editedCustomer.individual.deceased_date || undefined,
+            marital_status: editedCustomer.individual.marital_status || undefined,
+            gender: editedCustomer.individual.gender || undefined,
+            nationality: editedCustomer.individual.nationality || undefined
+          }
+        }
+
+        // Remove any sections that have all undefined values
+        if (Object.values(individualUpdateData.personal_info).every(v => v === undefined)) {
+          delete individualUpdateData.personal_info;
+        }
+        if (Object.values(individualUpdateData.contact_info).every(v => v === undefined)) {
+          delete individualUpdateData.contact_info;
+        }
+        if (Object.values(individualUpdateData.address).every(v => v === undefined)) {
+          delete individualUpdateData.address;
+        }
+        if (Object.values(individualUpdateData.personal_details).every(v => v === undefined)) {
+          delete individualUpdateData.personal_details;
+        }
+
+        await updateIndividual(editedCustomer.individual_id, individualUpdateData)
+      }
+
+      // Save accounting info if changed
+      if (hasAccountingInfoChanges) {
+        const accountingUpdateData = {
+          ni_number: editedCustomer.ni_number,
+          personal_utr_number: editedCustomer.personal_utr_number,
+          do_they_own_sa: editedCustomer.do_they_own_sa,
+          comments: editedCustomer.comments,
+          notes: editedCustomer.notes
+        }
+
+        await updateCustomerAccountingInfo(editedCustomer.id, accountingUpdateData)
+      }
+      
+      setSaveStatus('success')
+      
+      // Call parent's onSave to exit edit mode if provided
+      if (typeof onSave === 'function') {
+        onSave()
+      }
+    } catch (error) {
+      console.error('Error updating customer:', error)
+      setSaveStatus('error')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left Column */}
@@ -352,6 +517,25 @@ export function CustomerInformationDisplay({
               </div>
             </div>
           </div>
+
+          {/* Save Button and Status */}
+          {isEditing && (
+            <div className="mt-6 flex justify-end items-center space-x-4">
+              {saveStatus === 'success' && (
+                <span className="text-sm text-green-600">Changes saved successfully!</span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="text-sm text-red-600">Failed to save changes. Please try again.</span>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          )}
         </CustomerDetailSection>
       </div>
 
@@ -380,11 +564,32 @@ export function CustomerInformationDisplay({
                   onChange={(value) => onFieldChange('personal_utr_number', value)}
                   isEditing={isEditing}
                 />
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Self Assessment Required</label>
-                  <p className="mt-1 text-sm text-gray-900">{editedCustomer.do_they_own_sa ? 'Yes' : 'No'}</p>
-                </div>
+                <ToggleField
+                  label="Self Assessment Required"
+                  value={editedCustomer.do_they_own_sa}
+                  onChange={(value) => onFieldChange('do_they_own_sa', value)}
+                  isEditing={isEditing}
+                />
               </div>
+              
+              {/* Save Button and Status for Accounting Info */}
+              {isEditing && (
+                <div className="mt-6 flex justify-end items-center space-x-4">
+                  {saveStatus === 'success' && (
+                    <span className="text-sm text-green-600">Changes saved successfully!</span>
+                  )}
+                  {saveStatus === 'error' && (
+                    <span className="text-sm text-red-600">Failed to save changes. Please try again.</span>
+                  )}
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Column */}
@@ -403,7 +608,6 @@ export function CustomerInformationDisplay({
                     {capitalize(editedCustomer.mlr_status)}
                   </span>
                 </div>
-                {/* Add more compliance-related fields here */}
               </div>
             </div>
           </div>
@@ -422,9 +626,37 @@ export function CustomerInformationDisplay({
                   <div key={income.id} className="bg-gray-50 p-4 rounded-lg border">
                     <div className="flex justify-between items-start mb-2">
                       <h5 className="font-medium text-gray-900">{capitalize(income.income_type)}</h5>
-                      <span className="text-lg font-semibold text-green-600">
-                        {formatCurrency(income.income_amount)}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-lg font-semibold text-green-600">
+                          {formatCurrency(income.income_amount)}
+                        </span>
+                        {isEditing && (
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => setEditingIncome(income)}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm('Are you sure you want to delete this income?')) {
+                                  try {
+                                    await deleteIncome(income.id)
+                                    // Refresh data here
+                                    window.location.reload()
+                                  } catch (error) {
+                                    console.error('Error deleting income:', error)
+                                  }
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {income.description && (
                       <p className="text-sm text-gray-600">{income.description}</p>
@@ -435,17 +667,65 @@ export function CustomerInformationDisplay({
                   </div>
                 ))}
               </div>
-              <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                + Add Income Source
-              </button>
+              
+              {isEditing && !editingIncome && !showAddIncome && (
+                <button 
+                  onClick={() => setShowAddIncome(true)}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  + Add Income Source
+                </button>
+              )}
+              
+              {isEditing && showAddIncome && (
+                <IncomeModal
+                  isOpen={showAddIncome}
+                  onClose={() => setShowAddIncome(false)}
+                  onSave={() => {
+                    setShowAddIncome(false)
+                    window.location.reload()
+                  }}
+                  individualId={editedCustomer.individual_id}
+                />
+              )}
+              
+              {isEditing && editingIncome && (
+                <IncomeModal
+                  isOpen={!!editingIncome}
+                  onClose={() => setEditingIncome(null)}
+                  income={editingIncome}
+                  onSave={() => {
+                    setEditingIncome(null)
+                    window.location.reload()
+                  }}
+                  individualId={editedCustomer.individual_id}
+                />
+              )}
             </div>
           ) : (
             <div className="text-center py-8">
               <BanknotesIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">No income information available</p>
-              <button className="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
-                + Add Income Source
-              </button>
+              {isEditing && !showAddIncome && (
+                <button 
+                  onClick={() => setShowAddIncome(true)}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  + Add Income Source
+                </button>
+              )}
+              
+              {isEditing && showAddIncome && (
+                <IncomeModal
+                  isOpen={showAddIncome}
+                  onClose={() => setShowAddIncome(false)}
+                  onSave={() => {
+                    setShowAddIncome(false)
+                    window.location.reload()
+                  }}
+                  individualId={editedCustomer.individual_id}
+                />
+              )}
             </div>
           )}
         </CustomerDetailSection>
@@ -478,13 +758,40 @@ export function CustomerInformationDisplay({
                             {relationship.is_primary_owner && ' (Primary Owner)'}
                           </p>
                         </div>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          property.property_status === 'owned' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {property.property_status ? capitalize(property.property_status) : 'Unknown'}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            property.property_status === 'owned' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {property.property_status ? capitalize(property.property_status) : 'Unknown'}
+                          </span>
+                          {isEditing && (
+                            <div className="flex space-x-1">
+                              <button
+                                onClick={() => setEditingProperty({ property, relationship })}
+                                className="text-blue-600 hover:text-blue-800 text-sm"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (confirm('Are you sure you want to remove this property relationship?')) {
+                                    try {
+                                      await deletePropertyRelationship(property.id, relationship.id)
+                                      window.location.reload()
+                                    } catch (error) {
+                                      console.error('Error deleting property relationship:', error)
+                                    }
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-1 text-sm text-gray-600">
                         <p>
@@ -507,17 +814,66 @@ export function CustomerInformationDisplay({
                   );
                 })}
               </div>
-              <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                + Add Property
-              </button>
+              
+              {isEditing && !editingProperty && !showAddProperty && (
+                <button 
+                  onClick={() => setShowAddProperty(true)}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  + Add Property
+                </button>
+              )}
+              
+              {isEditing && showAddProperty && (
+                <PropertyModal
+                  isOpen={showAddProperty}
+                  onClose={() => setShowAddProperty(false)}
+                  onSave={() => {
+                    setShowAddProperty(false)
+                    window.location.reload()
+                  }}
+                  individualId={editedCustomer.individual_id}
+                />
+              )}
+              
+              {isEditing && editingProperty && (
+                <PropertyModal
+                  isOpen={!!editingProperty}
+                  onClose={() => setEditingProperty(null)}
+                  property={editingProperty.property}
+                  relationship={editingProperty.relationship}
+                  onSave={() => {
+                    setEditingProperty(null)
+                    window.location.reload()
+                  }}
+                  individualId={editedCustomer.individual_id}
+                />
+              )}
             </div>
           ) : (
             <div className="text-center py-8">
               <HomeIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">No property information available</p>
-              <button className="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
-                + Add Property
-              </button>
+              {isEditing && !showAddProperty && (
+                <button 
+                  onClick={() => setShowAddProperty(true)}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  + Add Property
+                </button>
+              )}
+              
+              {isEditing && showAddProperty && (
+                <PropertyModal
+                  isOpen={showAddProperty}
+                  onClose={() => setShowAddProperty(false)}
+                  onSave={() => {
+                    setShowAddProperty(false)
+                    window.location.reload()
+                  }}
+                  individualId={editedCustomer.individual_id}
+                />
+              )}
             </div>
           )}
         </CustomerDetailSection>
@@ -533,15 +889,38 @@ export function CustomerInformationDisplay({
             <div className="space-y-4">
               <h4 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">Notes & Comments</h4>
               <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Comments</label>
-                  <p className="mt-1 text-sm text-gray-900">{editedCustomer.comments || 'No comments'}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Notes</label>
-                  <p className="mt-1 text-sm text-gray-900">{editedCustomer.notes || 'No notes'}</p>
-                </div>
+                <EditableField
+                  label="Comments"
+                  value={editedCustomer.comments}
+                  onChange={(value) => onFieldChange('comments', value)}
+                  isEditing={isEditing}
+                />
+                <EditableField
+                  label="Notes"
+                  value={editedCustomer.notes}
+                  onChange={(value) => onFieldChange('notes', value)}
+                  isEditing={isEditing}
+                />
               </div>
+              
+              {/* Save Button and Status for Additional Info */}
+              {isEditing && (
+                <div className="mt-6 flex justify-end items-center space-x-4">
+                  {saveStatus === 'success' && (
+                    <span className="text-sm text-green-600">Changes saved successfully!</span>
+                  )}
+                  {saveStatus === 'error' && (
+                    <span className="text-sm text-red-600">Failed to save changes. Please try again.</span>
+                  )}
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Column */}

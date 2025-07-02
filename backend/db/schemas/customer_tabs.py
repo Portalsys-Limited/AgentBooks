@@ -27,7 +27,38 @@ class IndividualSummary(BaseModel):
     first_name: str
     last_name: str
     full_name: str
+    title: Optional[str] = None
+    middle_name: Optional[str] = None
+    
+    # Personal details
+    date_of_birth: Optional[date] = None
+    deceased_date: Optional[date] = None
+    is_deceased: Optional[bool] = None
+    marital_status: Optional[str] = None
+    gender: Optional[str] = None
+    nationality: Optional[str] = None
+    
+    # Contact information
     email: Optional[str] = None
+    secondary_email: Optional[str] = None
+    primary_mobile: Optional[str] = None
+    secondary_mobile: Optional[str] = None
+    
+    # Address
+    address_line_1: Optional[str] = None
+    address_line_2: Optional[str] = None
+    town: Optional[str] = None
+    county: Optional[str] = None
+    country: Optional[str] = None
+    post_code: Optional[str] = None
+    
+    # System fields
+    setup_date: Optional[datetime] = None
+    last_edited: Optional[datetime] = None
+    last_edited_by_id: Optional[UUID] = None
+    last_edited_by: Optional[UserSummary] = None
+    
+    # Related data
     incomes: List[IncomeResponse] = []
     property_relationships: List[PropertyIndividualRelationshipWithProperty] = []
     

@@ -20,6 +20,16 @@ class PropertyIndividualRelationshipBase(BaseModel):
 class PropertyIndividualRelationshipCreate(PropertyIndividualRelationshipBase):
     individual_id: UUID
 
+# Simplified create request schema for when individual_id is in URL
+class PropertyIndividualRelationshipCreateSimple(BaseModel):
+    ownership_type: OwnershipType
+    ownership_percentage: Decimal
+    is_primary_owner: bool = False
+    start_date: datetime
+    end_date: Optional[datetime] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+
 # Update request schema
 class PropertyIndividualRelationshipUpdate(BaseModel):
     ownership_type: Optional[OwnershipType] = None

@@ -18,6 +18,7 @@ from db.schemas.property import (
 )
 from db.schemas.property_individual_relationship import (
     PropertyIndividualRelationshipCreate,
+    PropertyIndividualRelationshipCreateSimple,
     PropertyIndividualRelationshipUpdate,
     PropertyIndividualRelationshipResponse,
     PropertyIndividualRelationshipWithProperty,
@@ -284,6 +285,7 @@ async def get_property(
     # Get property with relationships
     query = (
         select(Property)
+        .options(selectinload(Property.individual_relationships).selectinload(PropertyIndividualRelationship.individual))
         .join(PropertyIndividualRelationship)
         .join(Individual)
         .where(
@@ -310,12 +312,22 @@ async def create_property(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
     
     # Create property
-    property_data = request.dict()
-    property = Property(**property_data)
+    # Exclude computed fields that don't exist on the model
+    property_dict = request.dict(exclude={'full_address'})
+    property = Property(**property_dict)
     db.add(property)
     await db.commit()
     await db.refresh(property)
-    return property
+    
+    # Explicitly load the relationships with individual data
+    property_with_relations = await db.execute(
+        select(Property)
+        .options(selectinload(Property.individual_relationships).selectinload(PropertyIndividualRelationship.individual))
+        .where(Property.id == property.id)
+    )
+    property_with_relations = property_with_relations.scalar_one()
+    
+    return property_with_relations
 
 @router.put("/{property_id}", response_model=PropertyResponse)
 async def update_property(
@@ -350,7 +362,16 @@ async def update_property(
     
     await db.commit()
     await db.refresh(property)
-    return property
+    
+    # Explicitly load the relationships with individual data
+    property_with_relations = await db.execute(
+        select(Property)
+        .options(selectinload(Property.individual_relationships).selectinload(PropertyIndividualRelationship.individual))
+        .where(Property.id == property.id)
+    )
+    property_with_relations = property_with_relations.scalar_one()
+    
+    return property_with_relations
 
 @router.delete("/{property_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_property(
@@ -379,4 +400,61 @@ async def delete_property(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
     
     await db.delete(property)
-    await db.commit() 
+    await db.commit()
+
+@router.post("/individuals/{individual_id}/properties", response_model=PropertyResponse, status_code=status.HTTP_201_CREATED)
+async def create_property_for_individual(
+    individual_id: UUID,
+    property_data: PropertyCreateRequest,
+    relationship_data: PropertyIndividualRelationshipCreateSimple,
+    current_user: UserSchema = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new property and associate it with an individual"""
+    if not current_user.practice_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User must be assigned to a practice")
+    
+    # Verify individual exists and belongs to practice
+    individual = await db.execute(
+        select(Individual).where(
+            Individual.id == individual_id,
+            Individual.practice_id == current_user.practice_id
+        )
+    )
+    individual = individual.scalar_one_or_none()
+    if not individual:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Individual not found")
+    
+    # Create property
+    # Exclude computed fields that don't exist on the model
+    property_dict = property_data.dict(exclude={'full_address'})
+    property = Property(**property_dict)
+    db.add(property)
+    await db.flush()  # Get the property ID
+    
+    # Create relationship
+    relationship = PropertyIndividualRelationship(
+        property_id=property.id,
+        individual_id=individual_id,
+        ownership_type=relationship_data.ownership_type,
+        ownership_percentage=relationship_data.ownership_percentage,
+        start_date=relationship_data.start_date,
+        end_date=relationship_data.end_date,
+        is_primary_owner=relationship_data.is_primary_owner or False,
+        description=relationship_data.description,
+        notes=relationship_data.notes
+    )
+    
+    db.add(relationship)
+    await db.commit()
+    await db.refresh(property)
+    
+    # Explicitly load the relationships with individual data
+    property_with_relations = await db.execute(
+        select(Property)
+        .options(selectinload(Property.individual_relationships).selectinload(PropertyIndividualRelationship.individual))
+        .where(Property.id == property.id)
+    )
+    property_with_relations = property_with_relations.scalar_one()
+    
+    return property_with_relations 

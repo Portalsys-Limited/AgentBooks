@@ -13,7 +13,16 @@ import {
   LinkIcon
 } from '@heroicons/react/24/outline'
 import { CustomerRelationshipsTabResponse } from '../../../../lib/customers/types'
-import { getCustomerRelationships } from '../../../../lib/customers/service'
+import { 
+  getCustomerRelationships,
+  createCustomerClientAssociation,
+  updateCustomerClientAssociation,
+  deleteCustomerClientAssociation,
+  createCustomerIndividualRelationship,
+  updateCustomerIndividualRelationship,
+  deleteCustomerIndividualRelationship
+} from '../../../../lib/customers/service'
+import { ClientAssociationModal, IndividualRelationshipModal } from './modals'
 
 interface CustomerRelationshipsTabProps {
   customerId: string
@@ -23,6 +32,12 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
   const [relationshipsData, setRelationshipsData] = useState<CustomerRelationshipsTabResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal states
+  const [clientModalOpen, setClientModalOpen] = useState(false)
+  const [individualModalOpen, setIndividualModalOpen] = useState(false)
+  const [editingClientAssociation, setEditingClientAssociation] = useState<any>(null)
+  const [editingIndividualRelationship, setEditingIndividualRelationship] = useState<any>(null)
 
   useEffect(() => {
     loadRelationshipsData()
@@ -64,6 +79,84 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
     }
   }
 
+  // Client association handlers
+  const handleAddClientAssociation = () => {
+    setEditingClientAssociation(null)
+    setClientModalOpen(true)
+  }
+
+  const handleEditClientAssociation = (association: any) => {
+    setEditingClientAssociation(association)
+    setClientModalOpen(true)
+  }
+
+  const handleSaveClientAssociation = async (data: any) => {
+    try {
+      if (editingClientAssociation) {
+        await updateCustomerClientAssociation(customerId, editingClientAssociation.id, data)
+      } else {
+        await createCustomerClientAssociation(customerId, data)
+      }
+      await loadRelationshipsData()
+    } catch (err) {
+      console.error('Error saving client association:', err)
+      throw err
+    }
+  }
+
+  const handleDeleteClientAssociation = async (associationId: string) => {
+    if (!confirm('Are you sure you want to remove this client association?')) {
+      return
+    }
+    
+    try {
+      await deleteCustomerClientAssociation(customerId, associationId)
+      await loadRelationshipsData()
+    } catch (err) {
+      console.error('Error deleting client association:', err)
+      setError('Failed to delete client association')
+    }
+  }
+
+  // Individual relationship handlers
+  const handleAddIndividualRelationship = () => {
+    setEditingIndividualRelationship(null)
+    setIndividualModalOpen(true)
+  }
+
+  const handleEditIndividualRelationship = (relationship: any) => {
+    setEditingIndividualRelationship(relationship)
+    setIndividualModalOpen(true)
+  }
+
+  const handleSaveIndividualRelationship = async (data: any) => {
+    try {
+      if (editingIndividualRelationship) {
+        await updateCustomerIndividualRelationship(customerId, editingIndividualRelationship.id, data)
+      } else {
+        await createCustomerIndividualRelationship(customerId, data)
+      }
+      await loadRelationshipsData()
+    } catch (err) {
+      console.error('Error saving individual relationship:', err)
+      throw err
+    }
+  }
+
+  const handleDeleteIndividualRelationship = async (relationshipId: string) => {
+    if (!confirm('Are you sure you want to remove this individual relationship?')) {
+      return
+    }
+    
+    try {
+      await deleteCustomerIndividualRelationship(customerId, relationshipId)
+      await loadRelationshipsData()
+    } catch (err) {
+      console.error('Error deleting individual relationship:', err)
+      setError('Failed to delete individual relationship')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -98,7 +191,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
         </div>
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => {/* TODO: Add new client relation */}}
+            onClick={handleAddClientAssociation}
             className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
           >
             <PlusIcon className="h-4 w-4 mr-1" />
@@ -124,7 +217,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                 </div>
               </div>
               <button
-                onClick={() => {/* TODO: Add client association */}}
+                onClick={handleAddClientAssociation}
                 className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
               >
                 <PlusIcon className="h-3 w-3 mr-1" />
@@ -142,7 +235,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                   Link this customer to clients they are associated with
                 </p>
                 <button 
-                  onClick={() => {/* TODO: Add client association */}}
+                  onClick={handleAddClientAssociation}
                   className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
                   Add Client Association
@@ -182,6 +275,15 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
+                        onClick={() => handleEditClientAssociation(association)}
+                        className="inline-flex items-center p-1 text-gray-400 hover:text-blue-600"
+                        title="Edit association"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
                         onClick={() => window.open(`/clients/${association.client.id}`, '_blank')}
                         className="inline-flex items-center p-1 text-gray-400 hover:text-gray-600"
                         title="View client details"
@@ -189,7 +291,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                         <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => {/* TODO: Remove association */}}
+                        onClick={() => handleDeleteClientAssociation(association.id)}
                         className="inline-flex items-center p-1 text-gray-400 hover:text-red-600"
                         title="Remove association"
                       >
@@ -205,7 +307,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
           {relationshipsData.client_associations.length > 0 && (
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
               <button
-                onClick={() => {/* TODO: Navigate to add client page */}}
+                onClick={handleAddClientAssociation}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center"
               >
                 <PlusIcon className="h-4 w-4 mr-1" />
@@ -231,7 +333,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                 </div>
               </div>
               <button
-                onClick={() => {/* TODO: Add individual relationship */}}
+                onClick={handleAddIndividualRelationship}
                 className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
               >
                 <PlusIcon className="h-3 w-3 mr-1" />
@@ -249,7 +351,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                   Connect this customer with related individuals (spouse, partner, etc.)
                 </p>
                 <button 
-                  onClick={() => {/* TODO: Add individual relationship */}}
+                  onClick={handleAddIndividualRelationship}
                   className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
                   Add Individual Relationship
@@ -284,14 +386,16 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => {/* TODO: View relationship details */}}
-                        className="inline-flex items-center p-1 text-gray-400 hover:text-gray-600"
-                        title="View relationship details"
+                        onClick={() => handleEditIndividualRelationship(relationship)}
+                        className="inline-flex items-center p-1 text-gray-400 hover:text-blue-600"
+                        title="Edit relationship"
                       >
-                        <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
                       </button>
                       <button
-                        onClick={() => {/* TODO: Remove relationship */}}
+                        onClick={() => handleDeleteIndividualRelationship(relationship.id)}
                         className="inline-flex items-center p-1 text-gray-400 hover:text-red-600"
                         title="Remove relationship"
                       >
@@ -307,7 +411,7 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
           {relationshipsData.individual_relationships.length > 0 && (
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
               <button
-                onClick={() => {/* TODO: Add individual relationship */}}
+                onClick={handleAddIndividualRelationship}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center"
               >
                 <PlusIcon className="h-4 w-4 mr-1" />
@@ -365,6 +469,29 @@ export default function CustomerRelationshipsTab({ customerId }: CustomerRelatio
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <ClientAssociationModal
+        isOpen={clientModalOpen}
+        onClose={() => {
+          setClientModalOpen(false)
+          setEditingClientAssociation(null)
+        }}
+        onSave={handleSaveClientAssociation}
+        customerId={customerId}
+        editData={editingClientAssociation}
+      />
+
+      <IndividualRelationshipModal
+        isOpen={individualModalOpen}
+        onClose={() => {
+          setIndividualModalOpen(false)
+          setEditingIndividualRelationship(null)
+        }}
+        onSave={handleSaveIndividualRelationship}
+        customerId={customerId}
+        editData={editingIndividualRelationship}
+      />
     </div>
   )
 } 

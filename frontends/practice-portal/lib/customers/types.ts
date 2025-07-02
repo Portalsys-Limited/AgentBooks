@@ -208,6 +208,24 @@ export interface CreateCustomerData {
 // Customer update data
 export interface UpdateCustomerData extends Partial<Omit<CreateCustomerData, 'individual_id' | 'individual_data'>> {}
 
+// Customer accounting info update
+export interface CustomerAccountingInfoUpdate {
+  ni_number?: string
+  personal_utr_number?: string
+  do_they_own_sa?: boolean
+  comments?: string
+  notes?: string
+}
+
+// Customer MLR info update
+export interface CustomerMLRInfoUpdate {
+  mlr_status?: string
+  mlr_date_complete?: string
+  passport_number?: string
+  driving_license?: string
+  uk_home_telephone?: string
+}
+
 // ==========================================
 // TAB-SPECIFIC RESPONSE TYPES
 // ==========================================
@@ -308,8 +326,8 @@ export interface IndividualSummary {
   last_edited_by?: UserSummary
   
   // Related data
-  incomes?: Income[]
-  property_relationships?: PropertyIndividualRelationship[]
+  incomes: Income[]  // Changed to non-optional since backend always returns an array
+  property_relationships: PropertyIndividualRelationship[]  // Changed to non-optional since backend always returns an array
 }
 
 // Customer Info Tab Response
@@ -367,4 +385,86 @@ export interface CustomerRelationshipsTabResponse {
 export interface CustomerDocumentsTabResponse {
   id: string
   documents: DocumentResponse[]
+}
+
+// ==========================================
+// CUSTOMER-CLIENT ASSOCIATION TYPES
+// ==========================================
+
+export interface CustomerClientAssociationCreate {
+  client_id: string
+  relationship_type: string
+  percentage_ownership?: string
+  appointment_date?: string
+  resignation_date?: string
+  is_active?: string
+  is_primary_contact?: boolean
+  notes?: string
+}
+
+export interface CustomerClientAssociationUpdate {
+  relationship_type?: string
+  percentage_ownership?: string
+  appointment_date?: string
+  resignation_date?: string
+  is_active?: string
+  is_primary_contact?: boolean
+  notes?: string
+}
+
+export interface CustomerClientAssociationResponse {
+  id: string
+  customer_id: string
+  client_id: string
+  relationship_type: string
+  percentage_ownership?: string
+  appointment_date?: string
+  resignation_date?: string
+  is_active: string
+  is_primary_contact: boolean
+  notes?: string
+  created_at: string
+  updated_at?: string
+  customer: RelatedIndividualSummary
+  client: Client
+}
+
+// ==========================================
+// INDIVIDUAL RELATIONSHIP TYPES
+// ==========================================
+
+export interface IndividualRelationshipCreate {
+  to_individual_id: string
+  relationship_type: string
+  description?: string
+}
+
+export interface IndividualRelationshipUpdate {
+  relationship_type?: string
+  description?: string
+}
+
+// ==========================================
+// HELPER TYPES FOR DROPDOWNS
+// ==========================================
+
+export interface AvailableClient {
+  id: string
+  business_name: string
+  business_type?: string
+  main_email?: string
+  main_phone?: string
+}
+
+export interface AvailableIndividual {
+  id: string
+  first_name: string
+  last_name: string
+  full_name: string
+  email?: string
+}
+
+export interface EnumOption {
+  value: string
+  label: string
 } 

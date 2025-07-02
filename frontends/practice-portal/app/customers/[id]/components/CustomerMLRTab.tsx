@@ -15,7 +15,7 @@ import {
   CheckIcon
 } from '@heroicons/react/24/outline'
 import { CustomerMLRTabResponse } from '../../../../lib/customers/types'
-import { getCustomerMLR, updateCustomer } from '../../../../lib/customers/service'
+import { getCustomerMLR, updateCustomerMLRInfo } from '../../../../lib/customers/service'
 
 interface CustomerMLRTabProps {
   customerId: string
@@ -93,16 +93,14 @@ export default function CustomerMLRTab({ customerId }: CustomerMLRTabProps) {
       setError(null)
       
       const updateData = {
-        mlr_info: {
-          status: editData.mlr_status,
-          date_complete: editData.mlr_date_complete,
-          passport_number: editData.passport_number,
-          driving_license: editData.driving_license,
-          uk_home_telephone: editData.uk_home_telephone
-        }
+        mlr_status: editData.mlr_status,
+        mlr_date_complete: editData.mlr_date_complete,
+        passport_number: editData.passport_number,
+        driving_license: editData.driving_license,
+        uk_home_telephone: editData.uk_home_telephone
       }
 
-      await updateCustomer(customerId, updateData)
+      await updateCustomerMLRInfo(customerId, updateData)
       await loadMLRData()
       setIsEditing(false)
     } catch (err) {

@@ -113,16 +113,31 @@ async def update_individual(
     if request.contact_info:
         update_data.update(request.contact_info.dict(exclude_unset=True))
     if request.address:
-        update_data.update(request.address.dict(exclude_unset=True))
+        # Map address fields to database fields
+        address_data = request.address.dict(exclude_unset=True)
+        if 'line_1' in address_data:
+            address_data['address_line_1'] = address_data.pop('line_1')
+        if 'line_2' in address_data:
+            address_data['address_line_2'] = address_data.pop('line_2')
+        update_data.update(address_data)
     if request.personal_details:
         update_data.update(request.personal_details.dict(exclude_unset=True))
+    
+    # Log the update data
+    print(f"Updating individual {individual_id} with data: {update_data}")
     
     for field, value in update_data.items():
         setattr(individual, field, value)
     
-    await db.commit()
-    await db.refresh(individual)
-    return individual
+    try:
+        await db.commit()
+        await db.refresh(individual)
+        print(f"Successfully updated individual {individual_id}")
+        return individual
+    except Exception as e:
+        print(f"Error updating individual {individual_id}: {str(e)}")
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.delete("/{individual_id}", status_code=status.HTTP_204_NO_CONTENT)
